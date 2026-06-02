@@ -9,6 +9,8 @@ services:
     region: oregon
     healthCheckPath: /
     autoDeploy: true
+    domains:
+      - colorplate.spoolr.io
     envVars:
       - key: HOST
         value: 0.0.0.0
