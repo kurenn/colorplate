@@ -5,7 +5,7 @@ services:
   - type: web
     name: colorplate
     runtime: docker
-    plan: free            # 512 MB RAM, sleeps when idle; bump to "starter" for always-on
+    plan: standard        # 2 GB RAM / 1 CPU, always-on (no idle sleep)
     region: oregon
     healthCheckPath: /
     autoDeploy: true
