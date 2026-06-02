@@ -22,5 +22,5 @@ services:
         value: /var/data
       - key: COLORPLATE_SALT        # stable secret for hashing visitor IPs
         generateValue: true
-      - key: COLORPLATE_STATS_TOKEN # protects the /stats dashboard
-        generateValue: true
+      - key: COLORPLATE_STATS_TOKEN # protects the /stats dashboard; value set in dashboard
+        sync: false
