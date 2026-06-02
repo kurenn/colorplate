@@ -6,3 +6,4 @@ dist/
 out/
 .venv/
 .DS_Store
+.data/

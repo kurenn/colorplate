@@ -11,6 +11,16 @@ services:
     autoDeploy: true
     domains:
       - colorplate.spoolr.io
+    disk:
+      name: colorplate-data        # persists the SQLite usage DB across deploys
+      mountPath: /var/data
+      sizeGB: 1
     envVars:
       - key: HOST
         value: 0.0.0.0
+      - key: COLORPLATE_DATA_DIR
+        value: /var/data
+      - key: COLORPLATE_SALT        # stable secret for hashing visitor IPs
+        generateValue: true
+      - key: COLORPLATE_STATS_TOKEN # protects the /stats dashboard
+        generateValue: true
