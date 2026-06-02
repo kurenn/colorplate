@@ -1,0 +1,14 @@
+# Render Blueprint — deploys the ColorPlate GUI + API as one Docker web service.
+# In the Render dashboard: New ► Blueprint ► pick this repo. Render reads this file,
+# builds the Dockerfile, and provides $PORT automatically.
+services:
+  - type: web
+    name: colorplate
+    runtime: docker
+    plan: free            # 512 MB RAM, sleeps when idle; bump to "starter" for always-on
+    region: oregon
+    healthCheckPath: /
+    autoDeploy: true
+    envVars:
+      - key: HOST
+        value: 0.0.0.0
