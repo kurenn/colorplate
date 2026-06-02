@@ -163,17 +163,33 @@ def api_zip(request: Request, upload_id: str, name: str):
     return FileResponse(path, filename=name, media_type="application/zip")
 
 
+_STATS_COOKIE = "cp_stats"
+
+
 @app.get("/stats")
-def stats_view(token: str = "", format: str = "html"):
-    """Usage dashboard. Protected by ?token= when COLORPLATE_STATS_TOKEN is set
-    (always set in production); open locally when no token is configured."""
+def stats_view(request: Request, token: str = "", format: str = "html"):
+    """Usage dashboard. Protected by COLORPLATE_STATS_TOKEN when set (always in
+    production); open locally when no token is configured.
+
+    Pass ?token=<value> once and the response sets a cookie, so afterwards plain
+    /stats works in that browser without the token in the URL."""
     expected = os.environ.get("COLORPLATE_STATS_TOKEN")
-    if expected and token != expected:
-        raise HTTPException(401, "Missing or invalid token. Append ?token=<COLORPLATE_STATS_TOKEN>.")
+    if expected:
+        provided = token or request.cookies.get(_STATS_COOKIE, "")
+        if provided != expected:
+            raise HTTPException(
+                401, "Missing or invalid token. Visit /stats?token=<COLORPLATE_STATS_TOKEN> "
+                     "once and this browser will be remembered.")
+
     data = analytics.stats()
-    if format == "json":
-        return JSONResponse(data)
-    return HTMLResponse(_stats_html(data))
+    resp = JSONResponse(data) if format == "json" else HTMLResponse(_stats_html(data))
+
+    # Remember a freshly-supplied query token so the URL token isn't needed again.
+    if expected and token == expected:
+        proto = request.headers.get("x-forwarded-proto", request.url.scheme)
+        resp.set_cookie(_STATS_COOKIE, expected, max_age=60 * 60 * 24 * 90,
+                        httponly=True, samesite="lax", secure=(proto == "https"))
+    return resp
 
 
 # ---- helpers ---------------------------------------------------------------
