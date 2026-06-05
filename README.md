@@ -190,6 +190,17 @@ PlatePipeline  front shells at z0; backing = full silhouette behind; write files
 Each stage is a single-responsibility class (`raster.py`, `classify.py`,
 `mesh.py`, `pipeline.py`) so pieces can be swapped or tested in isolation.
 
+## 🧪 Development
+
+```bash
+pip install -e ".[web,test,auto]"
+pytest
+```
+
+The suite covers the pipeline (raster → detect → classify → mesh → generate),
+the CLI, the web service + HTTP API, the live 3D-preview geometry, and
+analytics. CI runs it on every push and pull request across Python 3.10 & 3.12.
+
 ## 📝 Notes
 
 - Thin features (e.g. web strands) must be wider than your nozzle line width at

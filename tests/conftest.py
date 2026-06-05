@@ -39,3 +39,31 @@ def sample_session(tmp_path_factory):
         "test-upload", "sample.svg", str(src), str(d), max_colors=4
     )
     return session, payload
+
+
+@pytest.fixture(scope="session")
+def sample_svg_path(tmp_path_factory):
+    """Filesystem path to the sample SVG."""
+    p = tmp_path_factory.mktemp("svg") / "sample.svg"
+    p.write_text(SAMPLE_SVG)
+    return str(p)
+
+
+@pytest.fixture()
+def sample_svg_bytes():
+    """The sample SVG as raw bytes (for multipart uploads)."""
+    return SAMPLE_SVG.encode()
+
+
+@pytest.fixture(scope="session")
+def sample_png_path(tmp_path_factory):
+    """A small RGBA PNG: transparent border, two flat-color halves in the middle."""
+    import numpy as np
+    from PIL import Image
+
+    a = np.zeros((80, 80, 4), "uint8")
+    a[15:65, 15:40] = (237, 67, 36, 255)   # orange-red
+    a[15:65, 40:65] = (33, 31, 29, 255)    # charcoal
+    p = tmp_path_factory.mktemp("png") / "sample.png"
+    Image.fromarray(a, "RGBA").save(p)
+    return str(p)
