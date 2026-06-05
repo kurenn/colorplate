@@ -10,6 +10,7 @@ face-down multi-material 3D printing (toolchanger / MMU).
 <br/>
 
 [![PyPI](https://img.shields.io/pypi/v/colorplate?style=for-the-badge&labelColor=231F1D&color=F9CF26)](https://pypi.org/project/colorplate/)
+[![CI](https://img.shields.io/github/actions/workflow/status/kurenn/colorplate/ci.yml?branch=main&style=for-the-badge&labelColor=231F1D&label=tests)](https://github.com/kurenn/colorplate/actions/workflows/ci.yml)
 [![Live demo](https://img.shields.io/badge/live-colorplate.spoolr.io-FBD732?style=for-the-badge&labelColor=231F1D)](https://colorplate.spoolr.io/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-A8DFDF?style=for-the-badge&labelColor=231F1D)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-ED4324?style=for-the-badge&labelColor=231F1D)](pyproject.toml)
@@ -129,7 +130,8 @@ What it does (all real, no mocks):
   Each detected region is pre-mapped to its nearest filament preset.
 - **Preview** — the right panel shows your *real* artwork recolored with the
   assigned filaments; it's built from the exact masks used for meshing, so what
-  you see is what the STLs contain.
+  you see is what the STLs contain. Flip to the **3D** view to rotate the actual
+  layered plates (front shells + backing) — the same geometry that gets exported.
 - **Generate** — one watertight STL per distinct assigned filament (regions sharing
   a filament are merged), plus an optional single-color backing plate, a flat-color
   preview PNG, and a manifest — bundled into a downloadable `.zip`.

@@ -67,6 +67,13 @@ class Filament(BaseModel):
     hex: str
 
 
+class Mesh3DReq(BaseModel):
+    uploadId: str
+    size: float
+    front: float
+    back: float
+
+
 class GenerateReq(BaseModel):
     uploadId: str
     assignments: list[Filament]       # one per region, in order
@@ -126,6 +133,18 @@ def api_redetect(request: Request, req: RedetectReq):
 def api_preview(req: PreviewReq):
     session = _require(req.uploadId)
     return {"preview": service.render_preview(session, req.assignments)}
+
+
+@app.post("/api/mesh3d")
+def api_mesh3d(req: Mesh3DReq):
+    session = _require(req.uploadId)
+    try:
+        return service.build_mesh3d(
+            session, size_mm=max(1.0, req.size),
+            front_mm=max(0.1, req.front), back_mm=max(0.1, req.back),
+        )
+    except Exception as exc:  # pragma: no cover - defensive
+        raise HTTPException(500, f"3D preview failed: {exc}")
 
 
 @app.post("/api/generate")

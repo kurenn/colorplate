@@ -60,6 +60,7 @@ function App() {
   const [busy, setBusy] = useState(false);            // detecting / re-detecting
   const [error, setError] = useState(null);
 
+  const [view, setView] = useState("2d");             // 2d recolor | 3d geometry
   const [maxColors, setMaxColors] = useState(4);
   const [size, setSize] = useState(180);
   const [front, setFront] = useState(1.0);
@@ -281,13 +282,31 @@ function App() {
             <div className="preview-top">
               <Icons.image size={16} />
               <span style={{ fontSize: 13, fontWeight: 600 }}>Print preview</span>
-              <span className="ptab" style={{ marginLeft: "auto" }}>
-                {loaded ? "painted with assigned filaments" : "no file"}
+              {loaded && (
+                <div className="view-toggle" style={{ marginLeft: "auto" }} role="group" aria-label="Preview mode">
+                  <button aria-pressed={view === "2d"} onClick={() => setView("2d")}>2D</button>
+                  <button aria-pressed={view === "3d"} onClick={() => setView("3d")}>3D</button>
+                </div>
+              )}
+              <span className="ptab" style={loaded ? null : { marginLeft: "auto" }}>
+                {loaded ? (view === "3d" ? "real layered geometry" : "painted with assigned filaments") : "no file"}
               </span>
             </div>
 
             <div className="preview-stage">
-              {loaded && preview ? (
+              {loaded && view === "3d" ? (
+                <div style={{ position: "absolute", inset: 0 }}>
+                  <ThreePreview
+                    uploadId={uploadId}
+                    regions={regions}
+                    backing={backing}
+                    size={size}
+                    front={front}
+                    back={backThick}
+                    theme={theme}
+                  />
+                </div>
+              ) : loaded && preview ? (
                 <div className="stage-card">
                   <img className="emblem-box art-preview" src={preview} alt="recolored logo preview" />
                   <div className="stage-legend">

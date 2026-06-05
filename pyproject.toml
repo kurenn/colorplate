@@ -1,6 +1,6 @@
 [project]
 name = "colorplate"
-version = "0.1.0"
+version = "0.2.0"
 description = "Turn SVG/PNG artwork into layered, gap-free multicolor STL plates for face-down multi-material 3D printing."
 readme = "README.md"
 license = "MIT"
@@ -26,6 +26,11 @@ web = [
     "uvicorn[standard]>=0.27",
     "python-multipart>=0.0.9",
 ]
+# Test suite (run with `pytest`). Builds on the web extra for the API tests.
+test = [
+    "pytest>=8.0",
+    "httpx>=0.27",
+]
 
 [project.scripts]
 colorplate = "colorplate.cli:main"
@@ -40,3 +45,7 @@ include = ["colorplate*"]
 
 [tool.setuptools.package-data]
 colorplate = ["web/static/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
