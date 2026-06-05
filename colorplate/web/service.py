@@ -34,6 +34,7 @@ from PIL import Image
 
 from ..config import PlateConfig
 from ..mesh import MeshBuilder
+from ..printability import feature_report
 from ..raster import RasterLoader
 from ..stack import merge_terrace
 from ..stack import snap as _snap
@@ -311,6 +312,59 @@ def render_preview(session: Session, assignments_hex: list[str], max_px: int = 5
     buf = io.BytesIO()
     img.save(buf, "PNG")
     return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode("ascii")
+
+
+# ----------------------------------------------------------------------------
+# Printability guardrails
+# ----------------------------------------------------------------------------
+def printability(session: Session, *, size_mm: float, nozzle_mm: float,
+                 overlay_px: int = 560) -> dict:
+    """Per-color printability report for the current size + nozzle, plus an
+    overlay PNG (cropped/sized like render_preview, so it aligns with the 2D
+    preview) highlighting at-risk areas — magenta = won't print, amber =
+    fragile. Colors are keyed by region ``index`` so the client can label them
+    with the currently-assigned filament."""
+    sil = session.sil
+    labels = session.labels
+    ys, xs = np.where(sil)
+    if ys.size == 0 or labels is None or not session.detected:
+        return {"colors": [], "worst": "ok", "suggestedSizeMm": None,
+                "nozzleMm": round(nozzle_mm, 2), "sizeMm": size_mm, "overlay": None}
+
+    span = max(int(xs.max() - xs.min()), int(ys.max() - ys.min())) or 1
+    scale = size_mm / span
+    masks = [("T%d" % (i + 1), labels == i) for i in range(len(session.detected))]
+    rep = feature_report(masks, scale, nozzle_mm,
+                         min_area_mm2=PlateConfig().min_area_mm2,
+                         size_mm=size_mm, return_masks=True)
+
+    h, w = sil.shape
+    rgba = np.zeros((h, w, 4), "uint8")
+    any_risk = False
+    for c in rep["colors"]:
+        frag = c.pop("fragileMask"); hard = c.pop("hardMask")
+        c["index"] = int(c["key"][1:]) - 1
+        if frag.any():
+            rgba[frag] = (245, 158, 11, 205); any_risk = True   # amber — fragile
+        if hard.any():
+            rgba[hard] = (236, 64, 122, 225); any_risk = True   # magenta — won't print
+
+    overlay = None
+    if any_risk:
+        img = Image.fromarray(rgba, "RGBA").crop(
+            (int(xs.min()), int(ys.min()), int(xs.max()) + 1, int(ys.max()) + 1))
+        le = max(img.size)
+        if le > overlay_px:
+            s = overlay_px / le
+            img = img.resize((max(1, round(img.width * s)), max(1, round(img.height * s))),
+                             Image.NEAREST)
+        buf = io.BytesIO()
+        img.save(buf, "PNG")
+        overlay = "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode("ascii")
+
+    return {"colors": rep["colors"], "worst": rep["worst"],
+            "suggestedSizeMm": rep["suggestedSizeMm"], "nozzleMm": rep["nozzleMm"],
+            "sizeMm": size_mm, "overlay": overlay}
 
 
 # ----------------------------------------------------------------------------
