@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   IP-hashing privacy guarantee). CI installs the `auto` extra so the
   scikit-learn color-discovery path is exercised too.
 
+### Changed
+- Migrate the web server's startup hook from the deprecated FastAPI
+  `@app.on_event("startup")` to a `lifespan` context manager.
+
 ## [0.2.0] - 2026-06-05
 
 ### Added
