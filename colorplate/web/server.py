@@ -11,6 +11,7 @@ import tempfile
 import time
 import uuid
 import webbrowser
+from contextlib import asynccontextmanager
 
 from . import analytics, service
 
@@ -41,14 +42,15 @@ class _RevalidatingStatic(StaticFiles):
         return response
 
 
-app = FastAPI(title="ColorPlate", docs_url=None, redoc_url=None)
+@asynccontextmanager
+async def _lifespan(app: FastAPI):
+    analytics.init()
+    yield
+
+
+app = FastAPI(title="ColorPlate", docs_url=None, redoc_url=None, lifespan=_lifespan)
 store = service.SessionStore()
 app.mount("/static", _RevalidatingStatic(directory=STATIC_DIR), name="static")
-
-
-@app.on_event("startup")
-def _startup() -> None:
-    analytics.init()
 
 
 # ---- request models --------------------------------------------------------
