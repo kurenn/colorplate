@@ -22,6 +22,7 @@ const Icons = {
   spinner:(p) => <Ic {...p}><path d="M12 3a9 9 0 1 0 9 9" /></Ic>,
   pkg:    (p) => <Ic {...p}><path d="M21 8 12 3 3 8v8l9 5 9-5V8Z" /><path d="m3 8 9 5 9-5M12 13v8" /></Ic>,
   pencil: (p) => <Ic {...p} d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z" />,
+  refresh:(p) => <Ic {...p}><path d="M21 12a9 9 0 1 1-2.64-6.36" /><path d="M21 4v4h-4" /></Ic>,
 };
 
 window.Icons = Icons;

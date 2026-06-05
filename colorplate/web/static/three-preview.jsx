@@ -14,6 +14,8 @@ const ThreePreview = (function () {
   const REDUCED_MOTION =
     window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+  const DEF_RX = -0.5, DEF_RY = -0.62;   // hero 3/4 tilt
+
   // Small LRU of fetched geometry so 2D⇄3D toggles and revisited sizes are
   // instant and don't re-hit the backend.
   const MESH_CACHE = new Map();
@@ -98,8 +100,8 @@ const ThreePreview = (function () {
       const state = {
         renderer, scene, camera, pivot, model,
         regionMeshes: [], backingMesh: null, edgeLines: [],
-        radius: 100, dist: 300,
-        rotX: -0.5, rotY: -0.62,
+        radius: 100, dist: 300, fitDist: 300,
+        rotX: DEF_RX, rotY: DEF_RY,
         velY: 0, dragging: false, interacted: REDUCED_MOTION, // no idle spin if reduced
         pointers: new Map(), pinchDist: 0,
         raf: 0, running: true, disposed: false,
@@ -143,11 +145,13 @@ const ThreePreview = (function () {
         state.interacted = true;
         zoomBy(state, Math.exp(e.deltaY * 0.0012));
       };
+      const onDblClick = () => resetView(state);
       el.addEventListener("pointerdown", onDown);
       window.addEventListener("pointermove", onMove);
       window.addEventListener("pointerup", onUp);
       window.addEventListener("pointercancel", onUp);
       el.addEventListener("wheel", onWheel, { passive: false });
+      el.addEventListener("dblclick", onDblClick);
 
       // ---- render loop (paused when the tab is hidden) ---------------------
       const tick = () => {
@@ -188,6 +192,7 @@ const ThreePreview = (function () {
         window.removeEventListener("pointerup", onUp);
         window.removeEventListener("pointercancel", onUp);
         el.removeEventListener("wheel", onWheel);
+        el.removeEventListener("dblclick", onDblClick);
         disposeModel(state);
         renderer.dispose();
         if (el.parentNode) el.parentNode.removeChild(el);
@@ -225,6 +230,8 @@ const ThreePreview = (function () {
       if (state && state.regionMeshes.length) applyColors(state, regions, backing, theme);
     }, [colorKey, theme]);
 
+    const doReset = () => { if (ctx.current) resetView(ctx.current); };
+
     return (
       <div className="three-wrap" ref={mountRef}>
         {status === "loading" && (
@@ -235,6 +242,11 @@ const ThreePreview = (function () {
         )}
         {status === "unsupported" && (
           <div className="three-overlay err">3D preview needs WebGL, which is unavailable here. Use the 2D view.</div>
+        )}
+        {status === "ready" && (
+          <button className="three-reset" onClick={doReset} title="Reset view (or double-click)">
+            <Icons.refresh size={14} /> Reset view
+          </button>
         )}
         {status !== "unsupported" && <div className="three-hint">drag to rotate · scroll or pinch to zoom</div>}
       </div>
@@ -300,6 +312,15 @@ const ThreePreview = (function () {
     state.radius = radius;
     const fov = (state.camera.fov * Math.PI) / 180;
     state.dist = (radius / Math.sin(fov / 2)) * 1.18;
+    state.fitDist = state.dist;
+  }
+
+  function resetView(state) {
+    state.rotX = DEF_RX;
+    state.rotY = DEF_RY;
+    state.velY = 0;
+    state.dist = state.fitDist;
+    state.interacted = true;   // hold the reset pose; no surprise re-spin
   }
 
   function applyColors(state, regions, backing, theme) {
