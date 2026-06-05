@@ -9,7 +9,8 @@ face-down multi-material 3D printing (toolchanger / MMU).
 
 <br/>
 
-[![Live demo](https://img.shields.io/badge/live-colorplate.spoolr.io-F9CF26?style=for-the-badge&labelColor=231F1D)](https://colorplate.spoolr.io/)
+[![PyPI](https://img.shields.io/pypi/v/colorplate?style=for-the-badge&labelColor=231F1D&color=F9CF26)](https://pypi.org/project/colorplate/)
+[![Live demo](https://img.shields.io/badge/live-colorplate.spoolr.io-FBD732?style=for-the-badge&labelColor=231F1D)](https://colorplate.spoolr.io/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-A8DFDF?style=for-the-badge&labelColor=231F1D)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-ED4324?style=for-the-badge&labelColor=231F1D)](pyproject.toml)
 [![CLI + Web GUI](https://img.shields.io/badge/CLI%20%2B%20Web%20GUI-D11A2A?style=for-the-badge&labelColor=231F1D)](#-web-gui)
@@ -66,10 +67,19 @@ stack a single-color **backing plate** behind it so the back is one clean color.
 ## ⚡ Quick start
 
 ```bash
-pip install -e .
-# optional: auto color detection for rasters without a known palette
-pip install -e ".[auto]"
+pip install colorplate                 # the CLI
+pip install "colorplate[auto]"         # + auto color detection for rasters (scikit-learn)
+pip install "colorplate[web]"          # + the colorplate-web browser GUI
 ```
+
+<details>
+<summary>From source (for development)</summary>
+
+```bash
+git clone https://github.com/kurenn/colorplate && cd colorplate
+pip install -e ".[web]"
+```
+</details>
 
 Requires a working `cairosvg` (for SVG input) which needs Cairo system libs.
 
@@ -104,7 +114,7 @@ logo, see its colors detected, map each to a filament, set size/thickness/backin
 preview the recolored art live, and download the generated STLs as a `.zip`.
 
 ```bash
-pip install -e ".[web]"
+pip install "colorplate[web]"
 colorplate-web                 # opens http://127.0.0.1:8000 in your browser
 # colorplate-web --port 9000 --no-browser
 ```
