@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 220" width="1280" height="220" role="img" aria-label="ColorPlate pipeline: drop, detect, map, tile and extrude, export">
+  <defs>
+    <pattern id="pdots" width="22" height="22" patternUnits="userSpaceOnUse">
+      <circle cx="1.4" cy="1.4" r="1.4" fill="#ffffff" fill-opacity="0.03"/>
+    </pattern>
+    <clipPath id="pcard"><rect x="0" y="0" width="1280" height="220" rx="20"/></clipPath>
+  </defs>
+
+  <g clip-path="url(#pcard)" font-family="'Geist', 'Helvetica Neue', Arial, system-ui, sans-serif">
+    <rect width="1280" height="220" fill="#0d0d0f"/>
+    <rect width="1280" height="220" fill="url(#pdots)"/>
+
+    <!-- 5 stages, evenly spaced; arrows between -->
+    <!-- stage template: card at x, accent dot, number, title, subtitle -->
+
+    <!-- 1 Drop -->
+    <g transform="translate(40,58)">
+      <rect width="208" height="104" rx="14" fill="#141417" stroke="#27272d" stroke-width="1"/>
+      <circle cx="26" cy="30" r="7" fill="#A8DFDF"/>
+      <text x="46" y="35" font-size="16" font-weight="700" fill="#f3f3f4">1 · Drop</text>
+      <text x="22" y="64" font-size="13.5" fill="#a2a2ab">SVG or PNG logo,</text>
+      <text x="22" y="84" font-size="13.5" fill="#a2a2ab">in your browser.</text>
+    </g>
+    <text x="262" y="116" font-size="26" fill="#5f5f66">&#8594;</text>
+
+    <!-- 2 Detect -->
+    <g transform="translate(290,58)">
+      <rect width="208" height="104" rx="14" fill="#141417" stroke="#27272d" stroke-width="1"/>
+      <circle cx="26" cy="30" r="7" fill="#F9CF26"/>
+      <text x="46" y="35" font-size="16" font-weight="700" fill="#f3f3f4">2 · Detect</text>
+      <text x="22" y="64" font-size="13.5" fill="#a2a2ab">Quantize to N flat,</text>
+      <text x="22" y="84" font-size="13.5" fill="#a2a2ab">printable colors.</text>
+    </g>
+    <text x="512" y="116" font-size="26" fill="#5f5f66">&#8594;</text>
+
+    <!-- 3 Map -->
+    <g transform="translate(540,58)">
+      <rect width="208" height="104" rx="14" fill="#141417" stroke="#27272d" stroke-width="1"/>
+      <circle cx="26" cy="30" r="7" fill="#ED4324"/>
+      <text x="46" y="35" font-size="16" font-weight="700" fill="#f3f3f4">3 · Map</text>
+      <text x="22" y="64" font-size="13.5" fill="#a2a2ab">Assign each color</text>
+      <text x="22" y="84" font-size="13.5" fill="#a2a2ab">to a filament.</text>
+    </g>
+    <text x="762" y="116" font-size="26" fill="#5f5f66">&#8594;</text>
+
+    <!-- 4 Tile + extrude -->
+    <g transform="translate(790,58)">
+      <rect width="208" height="104" rx="14" fill="#141417" stroke="#27272d" stroke-width="1"/>
+      <circle cx="26" cy="30" r="7" fill="#D11A2A"/>
+      <text x="46" y="35" font-size="16" font-weight="700" fill="#f3f3f4">4 · Build</text>
+      <text x="22" y="64" font-size="13.5" fill="#a2a2ab">Gap-free shells +</text>
+      <text x="22" y="84" font-size="13.5" fill="#a2a2ab">a backing plate.</text>
+    </g>
+    <text x="1012" y="116" font-size="26" fill="#5f5f66">&#8594;</text>
+
+    <!-- 5 Export -->
+    <g transform="translate(1040,58)">
+      <rect width="200" height="104" rx="14" fill="#141417" stroke="#34343c" stroke-width="1.5"/>
+      <circle cx="26" cy="30" r="7" fill="#F4F4F4"/>
+      <text x="46" y="35" font-size="16" font-weight="700" fill="#f3f3f4">5 · Export</text>
+      <text x="22" y="64" font-size="13.5" fill="#a2a2ab">One STL per color,</text>
+      <text x="22" y="84" font-size="13.5" fill="#F9CF26">bundled as a .zip.</text>
+    </g>
+  </g>
+</svg>

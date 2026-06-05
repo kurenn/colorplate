@@ -3,6 +3,8 @@ name = "colorplate"
 version = "0.1.0"
 description = "Turn SVG/PNG artwork into layered, gap-free multicolor STL plates for face-down multi-material 3D printing."
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.10"
 dependencies = [
     "numpy>=1.24",
@@ -30,7 +32,7 @@ colorplate = "colorplate.cli:main"
 colorplate-web = "colorplate.web.server:main"
 
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
