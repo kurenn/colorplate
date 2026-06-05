@@ -76,6 +76,16 @@ class Mesh3DReq(BaseModel):
     back: float
 
 
+class Stack3DReq(BaseModel):
+    uploadId: str
+    assignments: list[str]            # one filament hex per region, in order
+    order: list[str]                  # distinct filament hexes, base -> top
+    size: float
+    base: float
+    step: float
+    layer: float
+
+
 class GenerateReq(BaseModel):
     uploadId: str
     assignments: list[Filament]       # one per region, in order
@@ -147,6 +157,19 @@ def api_mesh3d(req: Mesh3DReq):
         )
     except Exception as exc:  # pragma: no cover - defensive
         raise HTTPException(500, f"3D preview failed: {exc}")
+
+
+@app.post("/api/stack3d")
+def api_stack3d(req: Stack3DReq):
+    session = _require(req.uploadId)
+    try:
+        return service.build_stack3d(
+            session, assignments=req.assignments, order=req.order,
+            size_mm=max(1.0, req.size), base_mm=max(0.1, req.base),
+            step_mm=max(0.1, req.step), layer_mm=max(0.04, req.layer),
+        )
+    except Exception as exc:  # pragma: no cover - defensive
+        raise HTTPException(500, f"Single-extruder preview failed: {exc}")
 
 
 @app.post("/api/generate")

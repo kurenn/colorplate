@@ -371,6 +371,79 @@ def build_mesh3d(session: Session, *, size_mm: float, front_mm: float,
     }
 
 
+def _snap(value: float, layer: float) -> float:
+    """Round a height to the nearest whole layer (min one layer) — filament
+    swaps can only land on a layer boundary."""
+    layer = max(0.04, layer)
+    return max(layer, round(value / layer) * layer)
+
+
+def build_stack3d(session: Session, *, assignments: list[str], order: list[str],
+                  size_mm: float, base_mm: float, step_mm: float,
+                  layer_mm: float) -> dict:
+    """Single-extruder ("filament swap") geometry: a terraced relief where each
+    color occupies its own Z band, so one nozzle can print it with an ``M600``
+    swap between bands.
+
+    ``order`` is the list of distinct filament hexes from base (bottom) to top.
+    A region assigned the hex at order position ``b`` rises to ``base + b*step``;
+    the full silhouette forms the base plate. Returns per-region columns + the
+    base (same shape as :func:`build_mesh3d`) plus the filament-swap schedule.
+    """
+    sil = session.sil
+    labels = session.labels
+    ys, xs = np.where(sil)
+    base_mm = _snap(base_mm, layer_mm)
+    step_mm = _snap(step_mm, layer_mm)
+    if ys.size == 0 or labels is None or not order:
+        return {"regions": [], "backing": None, "bbox": None, "bands": [],
+                "totalHeight": 0.0, "base": base_mm, "step": step_mm, "layer": layer_mm}
+
+    span = max(int(xs.max() - xs.min()), int(ys.max() - ys.min())) or 1
+    scale = size_mm / span
+    cfg = PlateConfig(size_mm=size_mm)
+    builder = MeshBuilder(scale, cfg.simplify_px, cfg.min_area_mm2)
+    band_of = {hexv.upper(): b for b, hexv in enumerate(order)}
+
+    bbox = [float("inf")] * 3 + [float("-inf")] * 3
+    regions = []
+    for i in range(len(session.detected)):
+        mask = labels == i
+        hexv = (assignments[i] if i < len(assignments) else "").upper()
+        b = band_of.get(hexv, 0)
+        height = base_mm + b * step_mm
+        payload = _mesh_payload(builder.build(mask, height, z_offset=0.0), bbox) \
+            if mask.any() else None
+        regions.append({"index": i, "band": b, "geometry": payload})
+
+    # No separate base plate: the region columns already tile the whole
+    # silhouette (gap-free) from z=0 up to each region's height, so together
+    # they ARE the terraced solid. A base plate would only z-fight their floors.
+    bands = []
+    for b, hexv in enumerate(order):
+        if b == 0:
+            z0, z1, action = 0.0, base_mm, "start"
+        else:
+            z0, z1, action = base_mm + (b - 1) * step_mm, base_mm + b * step_mm, "swap"
+        bands.append({
+            "band": b, "hex": hexv, "action": action,
+            "z0": round(z0, 2), "z1": round(z1, 2),
+            "layer": int(round(z0 / max(0.04, layer_mm))) + 1,
+        })
+
+    total = base_mm + (len(order) - 1) * step_mm
+    has_geom = any(r["geometry"] for r in regions)
+    return {
+        "regions": regions,
+        "backing": None,                       # columns already form the full solid
+        "bbox": bbox if has_geom else None,
+        "bands": bands,
+        "totalHeight": round(total, 2),
+        "base": round(base_mm, 3), "step": round(step_mm, 3),
+        "layer": layer_mm, "size": size_mm,
+    }
+
+
 # ----------------------------------------------------------------------------
 # STL generation (the real thing)
 # ----------------------------------------------------------------------------
