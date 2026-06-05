@@ -318,6 +318,7 @@ const ThreePreview = (function () {
       const geo = makeGeometry(r.geometry, center);
       const mat = new THREE.MeshStandardMaterial({ color: 0xcccccc, roughness: 0.62, metalness: 0.0 });
       const mesh = new THREE.Mesh(geo, mat);
+      mesh.userData.color = r.color || null;     // band color (stack mode) if baked
       state.model.add(mesh);
       if (state.mode === "stack") return mesh;   // no outlines on the terrace
       const edges = new THREE.LineSegments(
@@ -357,7 +358,9 @@ const ThreePreview = (function () {
   function applyColors(state, regions, backing, theme) {
     state.regionMeshes.forEach((mesh, i) => {
       if (!mesh) return;
-      const hex = regions[i] && regions[i].filament ? regions[i].filament.hex : "#cccccc";
+      // stack mode bakes the band color onto the mesh; mmu colors by region
+      const hex = (mesh.userData && mesh.userData.color)
+        || (regions[i] && regions[i].filament ? regions[i].filament.hex : "#cccccc");
       mesh.material.color.set(hex);
     });
     if (state.backingMesh) {

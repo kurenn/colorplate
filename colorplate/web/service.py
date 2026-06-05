@@ -404,27 +404,33 @@ def build_stack3d(session: Session, *, assignments: list[str], order: list[str],
     cfg = PlateConfig(size_mm=size_mm)
     builder = MeshBuilder(scale, cfg.simplify_px, cfg.min_area_mm2)
     band_of = {hexv.upper(): b for b, hexv in enumerate(order)}
+    region_band = [band_of.get((assignments[i] if i < len(assignments) else "").upper(), 0)
+                   for i in range(len(session.detected))]
+    nbands = len(order)
 
-    from scipy import ndimage  # erode region borders so neighbours don't overlap
-
+    # Build the terrace as horizontal band-slabs, exactly how it prints: band 0 is
+    # the full-silhouette base plate (printed in the base filament); band b is the
+    # union of every region that reaches at least that height, extruded through the
+    # b-th swap's layers and colored with that swap's filament. So the bottom is a
+    # uniform base, the sides show the real color stack, and each region's top is
+    # its own color. Upper slabs tuck slightly under the one below (overlap) so the
+    # shared interface is strictly interior — no coincident faces to z-fight.
+    overlap = min(0.05, step_mm * 0.5)
     bbox = [float("inf")] * 3 + [float("-inf")] * 3
-    regions = []
-    for i in range(len(session.detected)):
-        mask = labels == i
-        hexv = (assignments[i] if i < len(assignments) else "").upper()
-        b = band_of.get(hexv, 0)
-        height = base_mm + b * step_mm
-        # Each region is its own solid column; independent contour simplification
-        # makes adjacent regions overlap by ~1px and z-fight. Erode 1px so the
-        # columns meet at a hairline gap instead of interpenetrating.
-        m = ndimage.binary_erosion(mask, iterations=1) if mask.any() else mask
-        payload = _mesh_payload(builder.build(m, height, z_offset=0.0), bbox) \
-            if m.any() else None
-        regions.append({"index": i, "band": b, "geometry": payload})
+    slabs = []
+    for b in range(nbands):
+        foot = np.zeros_like(sil)
+        for i in range(len(session.detected)):
+            if region_band[i] >= b:
+                foot |= labels == i
+        if b == 0:
+            z0, z1 = 0.0, base_mm
+        else:
+            z0, z1 = base_mm + (b - 1) * step_mm - overlap, base_mm + b * step_mm
+        payload = _mesh_payload(builder.build(foot, z1 - z0, z_offset=z0), bbox) \
+            if foot.any() else None
+        slabs.append({"index": b, "band": b, "color": order[b], "geometry": payload})
 
-    # No separate base plate: the region columns already tile the whole
-    # silhouette (gap-free) from z=0 up to each region's height, so together
-    # they ARE the terraced solid. A base plate would only z-fight their floors.
     bands = []
     for b, hexv in enumerate(order):
         if b == 0:
@@ -437,11 +443,11 @@ def build_stack3d(session: Session, *, assignments: list[str], order: list[str],
             "layer": int(round(z0 / max(0.04, layer_mm))) + 1,
         })
 
-    total = base_mm + (len(order) - 1) * step_mm
-    has_geom = any(r["geometry"] for r in regions)
+    total = base_mm + (nbands - 1) * step_mm
+    has_geom = any(s["geometry"] for s in slabs)
     return {
-        "regions": regions,
-        "backing": None,                       # columns already form the full solid
+        "regions": slabs,                      # one entry per band-slab (carries its color)
+        "backing": None,
         "bbox": bbox if has_geom else None,
         "bands": bands,
         "totalHeight": round(total, 2),
