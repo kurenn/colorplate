@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import os
 
+import pytest
+
 from colorplate import cli
 
 
@@ -33,3 +35,30 @@ def test_cli_main_writes_outputs(sample_svg_path, tmp_path, capsys):
     assert any(f.endswith("_backing.stl") for f in files)
     assert any(f.endswith("_manifest.json") for f in files)
     assert any(f.endswith("_preview.png") for f in files)
+
+
+def test_cli_single_extruder(sample_svg_path, tmp_path, capsys):
+    import json
+
+    import trimesh
+
+    rc = cli.main([
+        sample_svg_path, "-o", str(tmp_path),
+        "--height", "100", "--raster-px", "600",
+        "--palette", "dark=#231F1D,gold=#F9CF26,red=#ED4324,white=#F4F4F4",
+        "--single-extruder", "--base", "0.8", "--step", "0.6", "--layer-height", "0.2",
+    ])
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "terraced STL" in out and "M600" in out
+
+    files = os.listdir(tmp_path)
+    stl = next(f for f in files if f.endswith("_stack.stl"))
+    assert any(f.endswith("_swaps.txt") for f in files)
+    # one watertight terraced solid spanning 0..base+3*step
+    mesh = trimesh.load(os.path.join(tmp_path, stl))
+    assert mesh.is_watertight
+    assert mesh.bounds[1][2] == pytest.approx(2.6, abs=1e-2)
+    man = json.load(open(os.path.join(tmp_path, stl.replace("_stack.stl", "_manifest.json"))))
+    assert man["mode"] == "single-extruder"
+    assert len(man["bands"]) == 4

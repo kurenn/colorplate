@@ -29,12 +29,12 @@ const ThreePreview = (function () {
     } catch (e) { return false; }
   }
 
-  async function fetchMesh(key, uploadId, size, front, back) {
+  async function fetchGeom(key, url, body) {
     if (MESH_CACHE.has(key)) return MESH_CACHE.get(key);
-    const r = await fetch("/api/mesh3d", {
+    const r = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ uploadId, size, front, back }),
+      body: JSON.stringify(body),
     });
     if (!r.ok) {
       let detail = r.statusText;
@@ -58,14 +58,28 @@ const ThreePreview = (function () {
 
   function ThreePreview(props) {
     const { uploadId, regions, backing, size, front, back, theme } = props;
+    const mode = props.mode || "mmu";              // "mmu" | "stack"
+    const stack = props.stackParams || null;       // {order, base, step, layer} when stack
     const mountRef = useRef(null);
     const ctx = useRef(null);          // persistent three.js context
     const [status, setStatus] = useState("idle");   // idle|loading|ready|error|unsupported
 
     const [err, setErr] = useState(null);
 
-    const colorKey = regions.map((r) => r.filament.hex).join(",") + "|" + (backing || "");
-    const geomKey = [uploadId, regions.length, size, front, back].join("|");
+    const assignKey = regions.map((r) => r.filament.hex).join(",");
+    const colorKey = assignKey + "|" + (backing || "");
+    const geomKey = mode === "stack"
+      ? ["stack", uploadId, size, assignKey, (stack.order || []).join(","),
+         stack.base, stack.step, stack.layer].join("|")
+      : ["mmu", uploadId, regions.length, size, front, back].join("|");
+
+    // request (url + body) for the current geometry mode
+    const geomReq = () => mode === "stack"
+      ? ["/api/stack3d", {
+          uploadId, assignments: regions.map((r) => r.filament.hex),
+          order: stack.order, size, base: stack.base, step: stack.step, layer: stack.layer,
+        }]
+      : ["/api/mesh3d", { uploadId, size, front, back }];
 
     // ---- one-time scene setup ---------------------------------------------
     useEffect(() => {
@@ -89,7 +103,9 @@ const ThreePreview = (function () {
       scene.add(pivot);
       const model = new THREE.Group();
       pivot.add(model);
-      model.rotation.x = Math.PI;        // bring the show face toward the viewer
+      // MMU: flip so the colored show-face (z=0) faces the viewer.
+      // Stack: don't flip — the colored face is the TOP (z=max).
+      model.rotation.x = mode === "stack" ? 0 : Math.PI;
 
       const hemi = new THREE.HemisphereLight(0xffffff, 0x444450, 1.1);
       const key = new THREE.DirectionalLight(0xffffff, 2.6); key.position.set(0.6, 1.0, 1.2);
@@ -101,9 +117,11 @@ const ThreePreview = (function () {
         renderer, scene, camera, pivot, model,
         regionMeshes: [], backingMesh: null, edgeLines: [],
         radius: 100, dist: 300, fitDist: 300,
-        rotX: DEF_RX, rotY: DEF_RY,
+        defRX: mode === "stack" ? -0.95 : DEF_RX,   // stack reads better from above
+        rotX: mode === "stack" ? -0.95 : DEF_RX, rotY: DEF_RY,
         velY: 0, dragging: false, interacted: REDUCED_MOTION, // no idle spin if reduced
         pointers: new Map(), pinchDist: 0,
+        mode,                                  // edges are skipped in "stack" mode
         raf: 0, running: true, disposed: false,
       };
       ctx.current = state;
@@ -209,7 +227,8 @@ const ThreePreview = (function () {
       if (!cached) { setStatus("loading"); setErr(null); }
       const run = async () => {
         try {
-          const data = await fetchMesh(geomKey, uploadId, size, front, back);
+          const [url, body] = geomReq();
+          const data = await fetchGeom(geomKey, url, body);
           if (cancelled || state.disposed) return;
           buildModel(state, data);
           applyColors(state, props.regions, props.backing, theme);
@@ -229,6 +248,17 @@ const ThreePreview = (function () {
       const state = ctx.current;
       if (state && state.regionMeshes.length) applyColors(state, regions, backing, theme);
     }, [colorKey, theme]);
+
+    // ---- re-orient when the printer mode changes (no remount) -------------
+    useEffect(() => {
+      const s = ctx.current;
+      if (!s) return;
+      s.mode = mode;
+      s.model.rotation.x = mode === "stack" ? 0 : Math.PI;
+      s.defRX = mode === "stack" ? -0.95 : DEF_RX;
+      s.rotX = s.defRX; s.rotY = DEF_RY; s.velY = 0;
+      s.interacted = REDUCED_MOTION;
+    }, [mode]);
 
     const doReset = () => { if (ctx.current) resetView(ctx.current); };
 
@@ -288,7 +318,9 @@ const ThreePreview = (function () {
       const geo = makeGeometry(r.geometry, center);
       const mat = new THREE.MeshStandardMaterial({ color: 0xcccccc, roughness: 0.62, metalness: 0.0 });
       const mesh = new THREE.Mesh(geo, mat);
+      mesh.userData.color = r.color || null;     // band color (stack mode) if baked
       state.model.add(mesh);
+      if (state.mode === "stack") return mesh;   // no outlines on the terrace
       const edges = new THREE.LineSegments(
         new THREE.EdgesGeometry(geo, 30),
         new THREE.LineBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.12 })
@@ -316,7 +348,7 @@ const ThreePreview = (function () {
   }
 
   function resetView(state) {
-    state.rotX = DEF_RX;
+    state.rotX = state.defRX != null ? state.defRX : DEF_RX;
     state.rotY = DEF_RY;
     state.velY = 0;
     state.dist = state.fitDist;
@@ -326,7 +358,9 @@ const ThreePreview = (function () {
   function applyColors(state, regions, backing, theme) {
     state.regionMeshes.forEach((mesh, i) => {
       if (!mesh) return;
-      const hex = regions[i] && regions[i].filament ? regions[i].filament.hex : "#cccccc";
+      // stack mode bakes the band color onto the mesh; mmu colors by region
+      const hex = (mesh.userData && mesh.userData.color)
+        || (regions[i] && regions[i].filament ? regions[i].filament.hex : "#cccccc");
       mesh.material.color.set(hex);
     });
     if (state.backingMesh) {

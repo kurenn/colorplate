@@ -45,6 +45,17 @@ def build_parser() -> argparse.ArgumentParser:
                    help="Target color count when auto-quantizing a raster (default: 4)")
     p.add_argument("--raster-px", type=int, default=1600,
                    help="Rasterization resolution on the long edge (default: 1600)")
+
+    se = p.add_argument_group("single-extruder (filament swaps, no MMU)")
+    se.add_argument("--single-extruder", action="store_true",
+                    help="Build ONE terraced STL with colors stacked by height, "
+                         "printed with a filament change (M600) between bands.")
+    se.add_argument("--base", type=float, default=0.8,
+                    help="Base-plate height in mm for single-extruder (default: 0.8)")
+    se.add_argument("--step", type=float, default=0.6,
+                    help="Height added per color band in mm (default: 0.6)")
+    se.add_argument("--layer-height", type=float, default=0.2,
+                    help="Layer height swaps snap to, in mm (default: 0.2)")
     return p
 
 
@@ -59,6 +70,23 @@ def main(argv: list[str] | None = None) -> int:
         auto_colors=args.colors,
         palette=_parse_palette(args.palette) if args.palette else [],
     )
+
+    if args.single_extruder:
+        res = PlatePipeline(cfg).run_stack(
+            args.input, args.out,
+            base_mm=args.base, step_mm=args.step, layer_mm=args.layer_height,
+        )
+        print(f"Wrote terraced STL ({res.total_mm:g}mm tall) to {args.out}/")
+        print(f"  stl        -> {res.stl}")
+        print(f"  swaps      -> {res.swaps}")
+        print(f"  manifest   -> {res.manifest}")
+        print(f"  preview    -> {res.preview}")
+        print(f"Single extruder — print as one object, insert M600 at:")
+        for b in res.bands:
+            verb = "start" if b["action"] == "start" else "swap "
+            print(f"  layer {b['layer']:<4d} z {b['z0']:.2f}mm  {verb}  {b['hex']}")
+        return 0
+
     result = PlatePipeline(cfg).run(args.input, args.out)
 
     print(f"Wrote {len(result.files)} STL(s) to {args.out}/")

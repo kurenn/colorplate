@@ -7,16 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-06-05
+
 ### Added
-- Full test suite (47 tests) covering the core pipeline (raster loading,
+- **Single-extruder mode** (CLI + web GUI). For printers without an MMU /
+  toolchanger, colors are stacked by height into a terraced relief — a base
+  plate, then each color raised one step higher — printable on one nozzle with an
+  `M600` filament change between bands. Export produces one watertight terraced
+  STL plus a filament-swap schedule (Z height + layer per swap, snapped to the
+  layer height), a manifest, and a preview.
+  - CLI: `colorplate logo.svg --single-extruder [--base --step --layer-height]`.
+  - GUI: a Printer toggle (Multi-material ⟷ Single extruder) with a live 3D
+    relief preview and a reorderable base→top color stack
+    (`POST /api/stack3d`, `POST /api/generate-stack`).
+- Full test suite (54 tests) covering the core pipeline (raster loading,
   detection/quantization, classification, mesh building, end-to-end plate
-  generation), the CLI, the web service + HTTP API, and analytics (including the
-  IP-hashing privacy guarantee). CI installs the `auto` extra so the
-  scikit-learn color-discovery path is exercised too.
+  generation), the CLI, the web service + HTTP API, single-extruder geometry +
+  export, and analytics (including the IP-hashing privacy guarantee), run in CI
+  on Python 3.10 & 3.12.
 
 ### Changed
 - Migrate the web server's startup hook from the deprecated FastAPI
   `@app.on_event("startup")` to a `lifespan` context manager.
+
+### Fixed
+- Results sheet now fully covers the controls column when they're taller than the
+  viewport (the column no longer scrolls behind the overlay).
 
 ## [0.2.0] - 2026-06-05
 
@@ -51,6 +67,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Graphical README with brand assets (hero banner, logo, pipeline graphic,
   GUI screenshots) and an MIT license.
 
-[Unreleased]: https://github.com/kurenn/colorplate/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/kurenn/colorplate/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/kurenn/colorplate/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/kurenn/colorplate/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/kurenn/colorplate/releases/tag/v0.1.0
