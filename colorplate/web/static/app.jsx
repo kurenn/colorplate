@@ -439,21 +439,22 @@ function App() {
             <div className="preview-top">
               <Icons.image size={16} />
               <span style={{ fontSize: 13, fontWeight: 600 }}>Print preview</span>
-              {loaded && printer === "mmu" && (
+              {loaded && (
                 <div className="view-toggle" style={{ marginLeft: "auto" }} role="group" aria-label="Preview mode">
                   <button aria-pressed={view === "2d"} onClick={() => setView("2d")}>2D</button>
                   <button aria-pressed={view === "3d"} onClick={() => setView("3d")}>3D</button>
                 </div>
               )}
-              <span className="ptab" style={loaded && printer === "mmu" ? null : { marginLeft: "auto" }}>
+              <span className="ptab" style={loaded ? null : { marginLeft: "auto" }}>
                 {!loaded ? "no file"
+                  : view === "2d" ? "painted with assigned filaments"
                   : printer === "single" ? "single-extruder relief"
-                  : view === "3d" ? "real layered geometry" : "painted with assigned filaments"}
+                  : "real layered geometry"}
               </span>
             </div>
 
             <div className="preview-stage">
-              {loaded && (printer === "single" || view === "3d") ? (
+              {loaded && view === "3d" ? (
                 <div style={{ position: "absolute", inset: 0 }}>
                   <ThreePreview
                     uploadId={uploadId}
