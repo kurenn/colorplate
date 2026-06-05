@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 232" width="220" height="232" role="img" aria-label="ColorPlate logo">
+  <defs>
+    <clipPath id="lc"><circle cx="110" cy="116" r="100"/></clipPath>
+  </defs>
+  <g clip-path="url(#lc)">
+    <circle cx="110" cy="116" r="96" fill="#231F1D"/>
+    <circle cx="113" cy="111" r="80" fill="#231F1D" stroke="#ffffff" stroke-opacity="0.0" stroke-width="2.4"/>
+    <circle cx="116" cy="106" r="63" fill="#F9CF26"/>
+    <circle cx="119" cy="102" r="47" fill="#D11A2A"/>
+    <circle cx="122" cy="99"  r="31" fill="#D11A2A"/>
+    <circle cx="124" cy="97"  r="15" fill="#F4F4F4"/>
+  </g>
+  <circle cx="110" cy="116" r="100" fill="none" stroke="#888888" stroke-opacity="0.35" stroke-width="1.5"/>
+</svg>

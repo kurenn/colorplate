@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 360" width="1280" height="360" role="img" aria-label="ColorPlate — turn any logo into print-ready multicolor STL plates">
+  <defs>
+    <!-- subtle dot grid, mirrors the app's preview stage -->
+    <pattern id="dots" width="22" height="22" patternUnits="userSpaceOnUse">
+      <circle cx="1.4" cy="1.4" r="1.4" fill="#ffffff" fill-opacity="0.03"/>
+    </pattern>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#F9CF26" stop-opacity="0.22"/>
+      <stop offset="70%" stop-color="#F9CF26" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="card"><rect x="0" y="0" width="1280" height="360" rx="20"/></clipPath>
+    <clipPath id="emblemClip"><circle cx="110" cy="116" r="100"/></clipPath>
+  </defs>
+
+  <g clip-path="url(#card)">
+    <!-- background -->
+    <rect width="1280" height="360" fill="#0d0d0f"/>
+    <rect width="1280" height="360" fill="url(#dots)"/>
+    <circle cx="220" cy="180" r="230" fill="url(#glow)"/>
+
+    <!-- concentric "loft plates" emblem (same geometry as the live app mark) -->
+    <g transform="translate(95,70) scale(1.02)">
+      <g clip-path="url(#emblemClip)">
+        <circle cx="110" cy="116" r="96" fill="#231F1D"/>
+        <circle cx="113" cy="111" r="80" fill="#231F1D" stroke="#0d0d0f" stroke-width="2.4"/>
+        <circle cx="116" cy="106" r="63" fill="#F9CF26" stroke="#0d0d0f" stroke-width="2.4"/>
+        <circle cx="119" cy="102" r="47" fill="#D11A2A" stroke="#0d0d0f" stroke-width="2.4"/>
+        <circle cx="122" cy="99"  r="31" fill="#D11A2A" stroke="#0d0d0f" stroke-width="2.4"/>
+        <circle cx="124" cy="97"  r="15" fill="#F4F4F4" stroke="#0d0d0f" stroke-width="2.4"/>
+      </g>
+      <circle cx="110" cy="116" r="100" fill="none" stroke="#ffffff" stroke-opacity="0.14" stroke-width="1.5"/>
+    </g>
+
+    <!-- wordmark + tagline -->
+    <g font-family="'Geist', 'Helvetica Neue', Arial, system-ui, sans-serif">
+      <text x="372" y="150" font-size="78" font-weight="700" letter-spacing="-2.5" fill="#f3f3f4">ColorPlate</text>
+      <!-- gold accent underline -->
+      <rect x="375" y="170" width="96" height="5" rx="2.5" fill="#F9CF26"/>
+      <text x="375" y="214" font-size="25" font-weight="500" letter-spacing="-0.2" fill="#c7c7cf">Turn any logo into print-ready, gap-free</text>
+      <text x="375" y="248" font-size="25" font-weight="500" letter-spacing="-0.2" fill="#c7c7cf">multicolor STL plates &#8212; for MMU &amp; toolchanger printing.</text>
+
+      <!-- filament swatch strip -->
+      <g transform="translate(375,286)" font-family="'Geist Mono', ui-monospace, 'SF Mono', monospace">
+        <rect x="0"   y="0" width="22" height="22" rx="6" fill="#231F1D"/>
+        <rect x="30"  y="0" width="22" height="22" rx="6" fill="#F9CF26"/>
+        <rect x="60"  y="0" width="22" height="22" rx="6" fill="#D11A2A"/>
+        <rect x="90"  y="0" width="22" height="22" rx="6" fill="#ED4324"/>
+        <rect x="120" y="0" width="22" height="22" rx="6" fill="#A8DFDF"/>
+        <rect x="150" y="0" width="22" height="22" rx="6" fill="#F4F4F4"/>
+        <text x="190" y="16" font-size="13" letter-spacing="1" fill="#7a7a83">DETECT &#183; MAP &#183; PREVIEW &#183; EXPORT</text>
+      </g>
+    </g>
+  </g>
+</svg>
