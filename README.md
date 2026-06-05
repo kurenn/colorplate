@@ -238,6 +238,12 @@ analytics. CI runs it on every push and pull request across Python 3.10 & 3.12.
 - Source artwork must use **filled** color regions. Pure line-art (strokes only,
   colors as background showing through) needs a fill pass first.
 
+## 📫 Contact
+
+Questions, bugs, or ideas? Open an issue on
+[GitHub](https://github.com/kurenn/colorplate/issues) or email
+**[k@altmail.kr](mailto:k@altmail.kr)**.
+
 ## License
 
 [MIT](LICENSE) © Abraham Kuri

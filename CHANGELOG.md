@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Packaging metadata for discoverability — PyPI keywords, trove classifiers,
+  project URLs (homepage, repository, issues, changelog), and an author/contact
+  email. README gains a Contact section.
+
 ## [0.3.0] - 2026-06-05
 
 ### Added
