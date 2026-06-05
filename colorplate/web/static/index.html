@@ -83,9 +83,11 @@
     display:grid; grid-template-columns: minmax(380px, 40%) 1fr;
     height: calc(100% - 56px); min-height:0;
   }
-  .col-left{ border-right:1px solid var(--border); overflow:auto; background:var(--bg); position:relative; }
+  /* fixed-height column that does NOT scroll itself; the .pad body scrolls, so
+     the absolutely-positioned results sheet always covers the whole column */
+  .col-left{ border-right:1px solid var(--border); overflow:hidden; background:var(--bg); position:relative; display:flex; flex-direction:column; }
   .col-right{ overflow:auto; background:var(--bg); position:relative; }
-  .pad{ padding:24px; display:flex; flex-direction:column; gap:18px; }
+  .pad{ padding:24px; display:flex; flex-direction:column; gap:18px; flex:1 1 auto; min-height:0; overflow:auto; }
 
   .col-left::-webkit-scrollbar, .col-right::-webkit-scrollbar{ width:10px; height:10px; }
   .col-left::-webkit-scrollbar-thumb, .col-right::-webkit-scrollbar-thumb{ background:var(--border-2); border-radius:99px; border:3px solid var(--bg); }
