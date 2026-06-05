@@ -242,6 +242,13 @@ function App() {
         </div>
         <div className="spacer" />
         <div className="pill"><span className="dot" />{loaded ? "ready" : "awaiting file"}</div>
+        <a className="icon-btn" title="View on GitHub" href="https://github.com/kurenn/colorplate"
+           target="_blank" rel="noopener noreferrer">
+          <Icons.github size={17} />
+        </a>
+        <a className="icon-btn" title="Contact — k@altmail.kr" href="mailto:k@altmail.kr">
+          <Icons.mail size={17} />
+        </a>
         <button className="icon-btn" title="Toggle theme"
                 onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
           {theme === "dark" ? <Icons.moon size={16} /> : <Icons.sun size={16} />}
