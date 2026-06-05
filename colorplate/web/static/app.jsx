@@ -51,6 +51,25 @@ const api = {
   },
 };
 
+// ---- onboarding tour -------------------------------------------------------
+const TOUR_SEEN_KEY = "colorplate-tour-v1";
+const TOUR_STEPS = [
+  { title: "Welcome to ColorPlate 👋",
+    body: "Turn a logo into print-ready multicolor 3D plates in a few steps. Here's the quick version — about 30 seconds." },
+  { selector: '[data-tour="upload"]', title: "1 · Drop a logo",
+    body: "Drop an SVG or PNG (or click to browse). ColorPlate rasterizes it and detects its colors automatically." },
+  { selector: '[data-tour="printer"]', title: "2 · Pick your printer",
+    body: "Multi-material (MMU / toolchanger) gives one STL per color. No MMU? Single extruder stacks the colors by height to print with filament swaps." },
+  { selector: '[data-tour="filaments"]', title: "3 · Map colors → filaments",
+    body: "Each detected color appears here, pre-matched to a filament. Click any chip to change it. Use “Max colors” above to control how many to separate into." },
+  { selector: '[data-tour="size"]', title: "4 · Size & thickness",
+    body: "Set the finished size and the layer thicknesses (or, for single extruder, the base and per-color step)." },
+  { selector: '[data-tour="preview"]', title: "5 · Preview in 2D or 3D",
+    body: "See your art recolored with the real filaments, and flip to a true 3D view to rotate the actual layered plates before you commit." },
+  { selector: '[data-tour="generate"]', title: "6 · Generate & print",
+    body: "Export watertight STLs (plus a backing plate, or a filament-swap schedule for single extruder) bundled in a zip — ready to slice. That's it!" },
+];
+
 function App() {
   const [theme, setTheme] = useState(() => document.documentElement.getAttribute("data-theme") || "light");
   useEffect(() => {
@@ -61,6 +80,19 @@ function App() {
     try { localStorage.setItem("colorplate-theme", theme); } catch (e) {}
   }, [theme]);
 
+  // Show the tour once per browser, shortly after first load.
+  useEffect(() => {
+    let seen = false;
+    try { seen = localStorage.getItem(TOUR_SEEN_KEY) === "1"; } catch (e) {}
+    if (seen) return;
+    const t = setTimeout(() => setTourOpen(true), 700);
+    return () => clearTimeout(t);
+  }, []);
+  const closeTour = () => {
+    setTourOpen(false);
+    try { localStorage.setItem(TOUR_SEEN_KEY, "1"); } catch (e) {}
+  };
+
   const [uploadId, setUploadId] = useState(null);
   const [file, setFile] = useState(null);            // filename or null
   const [preview, setPreview] = useState(null);      // data URL of recolored art
@@ -69,6 +101,7 @@ function App() {
   const [error, setError] = useState(null);
 
   const [view, setView] = useState("2d");             // 2d recolor | 3d geometry
+  const [tourOpen, setTourOpen] = useState(false);
   const [maxColors, setMaxColors] = useState(4);
   const [size, setSize] = useState(180);
   const [front, setFront] = useState(1.0);
@@ -242,6 +275,9 @@ function App() {
         </div>
         <div className="spacer" />
         <div className="pill"><span className="dot" />{loaded ? "ready" : "awaiting file"}</div>
+        <button className="icon-btn" title="Take a tour" onClick={() => setTourOpen(true)}>
+          <Icons.help size={17} />
+        </button>
         <a className="icon-btn" title="View on GitHub" href="https://github.com/kurenn/colorplate"
            target="_blank" rel="noopener noreferrer">
           <Icons.github size={17} />
@@ -261,7 +297,7 @@ function App() {
         <div className="col-left">
           <div className="pad">
             {/* upload */}
-            <div className="group">
+            <div className="group" data-tour="upload">
               <div className="section-label">Source file</div>
               {file
                 ? <FileCard name={file} regionCount={regions.length} preview={preview} onClear={clearFile} />
@@ -269,7 +305,7 @@ function App() {
             </div>
 
             {/* printer type */}
-            <div className={"group" + (loaded ? "" : " is-disabled")}>
+            <div className={"group" + (loaded ? "" : " is-disabled")} data-tour="printer">
               <div className="section-label">Printer</div>
               <div className="seg" role="group" aria-label="Printer type">
                 <button aria-pressed={printer === "mmu"} onClick={() => setPrinter("mmu")}>Multi-material</button>
@@ -289,13 +325,13 @@ function App() {
             </div>
 
             {/* color config */}
-            <div className={"group" + (loaded ? "" : " is-disabled")}>
+            <div className={"group" + (loaded ? "" : " is-disabled")} data-tour="filaments">
               <div className="section-label">Filament assignments <span className="n">{regions.length}</span></div>
               <ColorConfig regions={regionViews} mode={PICKER_MODE} />
             </div>
 
             {/* size */}
-            <div className={"group" + (loaded ? "" : " is-disabled")}>
+            <div className={"group" + (loaded ? "" : " is-disabled")} data-tour="size">
               <div className="section-label">Size</div>
               <NumberField value={size} onChange={setSize} unit="mm" step={5} min={20} />
               <div className="hint">Longest dimension of the finished plate.</div>
@@ -391,7 +427,7 @@ function App() {
 
           {/* sticky footer: Generate button (hidden once results show) */}
           {phase !== "results" && (
-            <div className="sticky-foot">
+            <div className="sticky-foot" data-tour="generate">
               {error && loaded ? <div className="dz-err" style={{ marginBottom: 8, textAlign: "center" }}>{error}</div> : null}
               {printer === "single" ? (
                 <button className="btn-primary" disabled={!loaded || phase === "generating"} onClick={generateSingle}>
@@ -441,7 +477,7 @@ function App() {
         </div>
 
         {/* RIGHT — preview */}
-        <div className="col-right">
+        <div className="col-right" data-tour="preview">
           <div className="preview-wrap">
             <div className="preview-top">
               <Icons.image size={16} />
@@ -524,6 +560,8 @@ function App() {
           </div>
         </div>
       </div>
+
+      <Tour open={tourOpen} steps={TOUR_STEPS} onClose={closeTour} />
     </>
   );
 }
