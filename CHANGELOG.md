@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Full test suite (47 tests) covering the core pipeline (raster loading,
+  detection/quantization, classification, mesh building, end-to-end plate
+  generation), the CLI, the web service + HTTP API, and analytics (including the
+  IP-hashing privacy guarantee). CI installs the `auto` extra so the
+  scikit-learn color-discovery path is exercised too.
+
 ## [0.2.0] - 2026-06-05
 
 ### Added
