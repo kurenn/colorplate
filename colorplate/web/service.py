@@ -311,6 +311,67 @@ def render_preview(session: Session, assignments_hex: list[str], max_px: int = 5
 
 
 # ----------------------------------------------------------------------------
+# Live 3D preview geometry
+# ----------------------------------------------------------------------------
+def _mesh_payload(mesh, bbox: list) -> dict | None:
+    """Flatten a trimesh into JSON-friendly position/index arrays and fold its
+    bounds into the running ``bbox`` ([minx,miny,minz, maxx,maxy,maxz])."""
+    if mesh is None or len(mesh.faces) == 0:
+        return None
+    v = np.round(np.asarray(mesh.vertices, dtype=float), 3)
+    f = np.asarray(mesh.faces, dtype=np.int32)
+    lo = v.min(axis=0)
+    hi = v.max(axis=0)
+    for k in range(3):
+        bbox[k] = min(bbox[k], float(lo[k]))
+        bbox[k + 3] = max(bbox[k + 3], float(hi[k]))
+    return {"positions": v.ravel().tolist(), "indices": f.ravel().tolist()}
+
+
+def build_mesh3d(session: Session, *, size_mm: float, front_mm: float,
+                 back_mm: float) -> dict:
+    """Build per-region front-shell meshes plus the backing plate for the live
+    3D preview, returned as compact vertex/index arrays in millimetres.
+
+    Geometry is built from the same cached detection label map and MeshBuilder
+    that :func:`generate` uses, so the 3D view is identical to the exported STLs.
+    Filament colors are applied client-side, so reassigning a filament needs no
+    rebuild — only size/thickness/color-count changes do.
+    """
+    sil = session.sil
+    labels = session.labels
+    ys, xs = np.where(sil)
+    if ys.size == 0 or labels is None:
+        return {"regions": [], "backing": None, "bbox": None,
+                "front": front_mm, "back": back_mm, "size": size_mm}
+
+    span = max(int(xs.max() - xs.min()), int(ys.max() - ys.min())) or 1
+    scale = size_mm / span
+    cfg = PlateConfig(size_mm=size_mm, front_mm=front_mm, back_mm=back_mm)
+    builder = MeshBuilder(scale, cfg.simplify_px, cfg.min_area_mm2)
+
+    bbox = [float("inf")] * 3 + [float("-inf")] * 3
+    regions = []
+    for i in range(len(session.detected)):
+        mask = labels == i
+        payload = _mesh_payload(builder.build(mask, front_mm, z_offset=0.0), bbox) \
+            if mask.any() else None
+        regions.append({"index": i, "geometry": payload})
+
+    backing = _mesh_payload(builder.build(sil, back_mm, z_offset=front_mm), bbox)
+
+    has_geom = any(r["geometry"] for r in regions) or backing is not None
+    return {
+        "regions": regions,
+        "backing": backing,
+        "bbox": bbox if has_geom else None,
+        "front": front_mm,
+        "back": back_mm,
+        "size": size_mm,
+    }
+
+
+# ----------------------------------------------------------------------------
 # STL generation (the real thing)
 # ----------------------------------------------------------------------------
 @dataclass
