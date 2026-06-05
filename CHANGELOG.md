@@ -7,14 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-06-05
+
 ### Added
 - **Real 3D preview** in the web GUI: a 2D/3D toggle on the print preview renders
   the actual layered geometry (one extruded mesh per color region plus the
-  backing plate) with Three.js — drag to rotate, scroll or pinch to zoom.
-  Geometry is built from the same label map and `MeshBuilder` as STL export, so
-  the preview matches what you print; filament reassignments recolor instantly
-  client-side. Backed by a new `POST /api/mesh3d` endpoint. Degrades gracefully
-  when WebGL is unavailable and honors `prefers-reduced-motion`.
+  backing plate) with Three.js — drag to rotate, scroll or pinch to zoom,
+  double-click or "Reset view" to recenter. Geometry is built from the same
+  label map and `MeshBuilder` as STL export, so the preview matches what you
+  print; filament reassignments recolor instantly client-side. Backed by a new
+  `POST /api/mesh3d` endpoint. Degrades gracefully when WebGL is unavailable and
+  honors `prefers-reduced-motion`.
+- Test suite for the 3D geometry path (`build_mesh3d` and `/api/mesh3d`) and a
+  CI workflow that runs `pytest` on every push and pull request (Python 3.10 &
+  3.12).
 
 ## [0.1.0] - 2026-06-05
 
@@ -34,5 +40,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Graphical README with brand assets (hero banner, logo, pipeline graphic,
   GUI screenshots) and an MIT license.
 
-[Unreleased]: https://github.com/kurenn/colorplate/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/kurenn/colorplate/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/kurenn/colorplate/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/kurenn/colorplate/releases/tag/v0.1.0
