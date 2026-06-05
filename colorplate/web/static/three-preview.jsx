@@ -121,6 +121,7 @@ const ThreePreview = (function () {
         rotX: mode === "stack" ? -0.95 : DEF_RX, rotY: DEF_RY,
         velY: 0, dragging: false, interacted: REDUCED_MOTION, // no idle spin if reduced
         pointers: new Map(), pinchDist: 0,
+        mode,                                  // edges are skipped in "stack" mode
         raf: 0, running: true, disposed: false,
       };
       ctx.current = state;
@@ -252,6 +253,7 @@ const ThreePreview = (function () {
     useEffect(() => {
       const s = ctx.current;
       if (!s) return;
+      s.mode = mode;
       s.model.rotation.x = mode === "stack" ? 0 : Math.PI;
       s.defRX = mode === "stack" ? -0.95 : DEF_RX;
       s.rotX = s.defRX; s.rotY = DEF_RY; s.velY = 0;
@@ -317,6 +319,7 @@ const ThreePreview = (function () {
       const mat = new THREE.MeshStandardMaterial({ color: 0xcccccc, roughness: 0.62, metalness: 0.0 });
       const mesh = new THREE.Mesh(geo, mat);
       state.model.add(mesh);
+      if (state.mode === "stack") return mesh;   // no outlines on the terrace
       const edges = new THREE.LineSegments(
         new THREE.EdgesGeometry(geo, 30),
         new THREE.LineBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.12 })

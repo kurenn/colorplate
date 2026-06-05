@@ -405,6 +405,8 @@ def build_stack3d(session: Session, *, assignments: list[str], order: list[str],
     builder = MeshBuilder(scale, cfg.simplify_px, cfg.min_area_mm2)
     band_of = {hexv.upper(): b for b, hexv in enumerate(order)}
 
+    from scipy import ndimage  # erode region borders so neighbours don't overlap
+
     bbox = [float("inf")] * 3 + [float("-inf")] * 3
     regions = []
     for i in range(len(session.detected)):
@@ -412,8 +414,12 @@ def build_stack3d(session: Session, *, assignments: list[str], order: list[str],
         hexv = (assignments[i] if i < len(assignments) else "").upper()
         b = band_of.get(hexv, 0)
         height = base_mm + b * step_mm
-        payload = _mesh_payload(builder.build(mask, height, z_offset=0.0), bbox) \
-            if mask.any() else None
+        # Each region is its own solid column; independent contour simplification
+        # makes adjacent regions overlap by ~1px and z-fight. Erode 1px so the
+        # columns meet at a hairline gap instead of interpenetrating.
+        m = ndimage.binary_erosion(mask, iterations=1) if mask.any() else mask
+        payload = _mesh_payload(builder.build(m, height, z_offset=0.0), bbox) \
+            if m.any() else None
         regions.append({"index": i, "band": b, "geometry": payload})
 
     # No separate base plate: the region columns already tile the whole
