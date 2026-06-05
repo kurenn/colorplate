@@ -378,6 +378,61 @@ def _snap(value: float, layer: float) -> float:
     return max(layer, round(value / layer) * layer)
 
 
+def _stack_slabs(session: Session, assignments: list[str], order: list[str],
+                 size_mm: float, base_mm: float, step_mm: float) -> tuple[list[dict], float]:
+    """Build the terrace as horizontal band-slabs (shared by preview + export).
+
+    Band 0 is the full-silhouette base plate; band b is the union of every region
+    that reaches at least that height, extruded through that swap's layers. Upper
+    slabs tuck slightly under the slab below (overlap) so the shared interface is
+    interior — no coincident faces. Returns ``(slabs, total_height)`` where each
+    slab is ``{band, color, mesh}`` (mesh is a trimesh or None).
+    """
+    sil, labels = session.sil, session.labels
+    ys, xs = np.where(sil)
+    span = max(int(xs.max() - xs.min()), int(ys.max() - ys.min())) or 1
+    scale = size_mm / span
+    cfg = PlateConfig(size_mm=size_mm)
+    builder = MeshBuilder(scale, cfg.simplify_px, cfg.min_area_mm2)
+    band_of = {h.upper(): b for b, h in enumerate(order)}
+    region_band = [band_of.get((assignments[i] if i < len(assignments) else "").upper(), 0)
+                   for i in range(len(session.detected))]
+    nbands = len(order)
+    overlap = min(0.05, step_mm * 0.5)
+
+    slabs = []
+    for b in range(nbands):
+        foot = np.zeros_like(sil)
+        for i in range(len(session.detected)):
+            if region_band[i] >= b:
+                foot |= labels == i
+        if b == 0:
+            z0, z1 = 0.0, base_mm
+        else:
+            z0, z1 = base_mm + (b - 1) * step_mm - overlap, base_mm + b * step_mm
+        mesh = builder.build(foot, z1 - z0, z_offset=z0) if foot.any() else None
+        slabs.append({"band": b, "color": order[b], "mesh": mesh})
+    total = base_mm + (nbands - 1) * step_mm
+    return slabs, total
+
+
+def _swap_bands(order: list[str], base_mm: float, step_mm: float, layer_mm: float) -> list[dict]:
+    """Filament-swap schedule: for each color (base->top), its Z band and the
+    layer where the swap happens (band 0 is the start, not a swap)."""
+    bands = []
+    for b, hexv in enumerate(order):
+        if b == 0:
+            z0, z1, action = 0.0, base_mm, "start"
+        else:
+            z0, z1, action = base_mm + (b - 1) * step_mm, base_mm + b * step_mm, "swap"
+        bands.append({
+            "band": b, "hex": hexv, "action": action,
+            "z0": round(z0, 2), "z1": round(z1, 2),
+            "layer": int(round(z0 / max(0.04, layer_mm))) + 1,
+        })
+    return bands
+
+
 def build_stack3d(session: Session, *, assignments: list[str], order: list[str],
                   size_mm: float, base_mm: float, step_mm: float,
                   layer_mm: float) -> dict:
@@ -390,60 +445,21 @@ def build_stack3d(session: Session, *, assignments: list[str], order: list[str],
     the full silhouette forms the base plate. Returns per-region columns + the
     base (same shape as :func:`build_mesh3d`) plus the filament-swap schedule.
     """
-    sil = session.sil
-    labels = session.labels
-    ys, xs = np.where(sil)
     base_mm = _snap(base_mm, layer_mm)
     step_mm = _snap(step_mm, layer_mm)
-    if ys.size == 0 or labels is None or not order:
+    if session.sil.sum() == 0 or session.labels is None or not order:
         return {"regions": [], "backing": None, "bbox": None, "bands": [],
                 "totalHeight": 0.0, "base": base_mm, "step": step_mm, "layer": layer_mm}
 
-    span = max(int(xs.max() - xs.min()), int(ys.max() - ys.min())) or 1
-    scale = size_mm / span
-    cfg = PlateConfig(size_mm=size_mm)
-    builder = MeshBuilder(scale, cfg.simplify_px, cfg.min_area_mm2)
-    band_of = {hexv.upper(): b for b, hexv in enumerate(order)}
-    region_band = [band_of.get((assignments[i] if i < len(assignments) else "").upper(), 0)
-                   for i in range(len(session.detected))]
-    nbands = len(order)
-
-    # Build the terrace as horizontal band-slabs, exactly how it prints: band 0 is
-    # the full-silhouette base plate (printed in the base filament); band b is the
-    # union of every region that reaches at least that height, extruded through the
-    # b-th swap's layers and colored with that swap's filament. So the bottom is a
-    # uniform base, the sides show the real color stack, and each region's top is
-    # its own color. Upper slabs tuck slightly under the one below (overlap) so the
-    # shared interface is strictly interior — no coincident faces to z-fight.
-    overlap = min(0.05, step_mm * 0.5)
+    slabs_raw, total = _stack_slabs(session, assignments, order, size_mm, base_mm, step_mm)
     bbox = [float("inf")] * 3 + [float("-inf")] * 3
-    slabs = []
-    for b in range(nbands):
-        foot = np.zeros_like(sil)
-        for i in range(len(session.detected)):
-            if region_band[i] >= b:
-                foot |= labels == i
-        if b == 0:
-            z0, z1 = 0.0, base_mm
-        else:
-            z0, z1 = base_mm + (b - 1) * step_mm - overlap, base_mm + b * step_mm
-        payload = _mesh_payload(builder.build(foot, z1 - z0, z_offset=z0), bbox) \
-            if foot.any() else None
-        slabs.append({"index": b, "band": b, "color": order[b], "geometry": payload})
+    slabs = [
+        {"index": s["band"], "band": s["band"], "color": s["color"],
+         "geometry": _mesh_payload(s["mesh"], bbox)}
+        for s in slabs_raw
+    ]
 
-    bands = []
-    for b, hexv in enumerate(order):
-        if b == 0:
-            z0, z1, action = 0.0, base_mm, "start"
-        else:
-            z0, z1, action = base_mm + (b - 1) * step_mm, base_mm + b * step_mm, "swap"
-        bands.append({
-            "band": b, "hex": hexv, "action": action,
-            "z0": round(z0, 2), "z1": round(z1, 2),
-            "layer": int(round(z0 / max(0.04, layer_mm))) + 1,
-        })
-
-    total = base_mm + (nbands - 1) * step_mm
+    bands = _swap_bands(order, base_mm, step_mm, layer_mm)
     has_geom = any(s["geometry"] for s in slabs)
     return {
         "regions": slabs,                      # one entry per band-slab (carries its color)
@@ -584,3 +600,120 @@ def _write_show_preview(session: Session, assignments_hex: list[str], path: str)
         if m.any():
             out[m] = hex_to_rgb(fil_hex)
     Image.fromarray(out).save(path)
+
+
+def _clear_artifacts(session: Session) -> None:
+    src = os.path.basename(session.src_path)
+    for f in os.listdir(session.out_dir):
+        if f != src:
+            try:
+                os.remove(os.path.join(session.out_dir, f))
+            except OSError:
+                pass
+
+
+def generate_stack(session: Session, assignments: list[dict], order: list[str], *,
+                   size_mm: float, base_mm: float, step_mm: float, layer_mm: float) -> dict:
+    """Single-extruder export: one terraced STL (the band-slabs merged into a
+    single solid) plus a filament-swap schedule, manifest, and show-face preview,
+    bundled into a zip. The print is one object on one nozzle; the operator
+    inserts an ``M600`` at each swap layer in the schedule.
+    """
+    import trimesh
+
+    base_mm = _snap(base_mm, layer_mm)
+    step_mm = _snap(step_mm, layer_mm)
+    if not order:
+        raise ValueError("No colors to stack.")
+    stem = os.path.splitext(session.filename)[0] or "logo"
+    _clear_artifacts(session)
+
+    assign_hex = [a["hex"] for a in assignments]
+    name_by_hex = {a["hex"].upper(): a["name"] for a in assignments}
+    slabs, total = _stack_slabs(session, assign_hex, order, size_mm, base_mm, step_mm)
+    meshes = [s["mesh"] for s in slabs if s["mesh"] is not None]
+    if not meshes:
+        raise ValueError("Nothing printable to export.")
+
+    # Merge the slabs into one solid. Prefer a clean boolean union; fall back to
+    # concatenation (slicers union overlapping shells anyway) if no CSG backend.
+    try:
+        solid = trimesh.boolean.union(meshes)
+        if solid is None or solid.is_empty:
+            raise ValueError("empty union")
+    except Exception:
+        solid = trimesh.util.concatenate(meshes)
+
+    written: list[str] = []
+    files: list[GenFile] = []
+
+    stl_name = "%s_stack.stl" % stem
+    stl_path = os.path.join(session.out_dir, stl_name)
+    solid.export(stl_path)
+    written.append(stl_path)
+    files.append(GenFile(stl_name, order[0], os.path.getsize(stl_path) / 1e6))
+
+    bands = _swap_bands(order, base_mm, step_mm, layer_mm)
+    for band in bands:
+        band["name"] = name_by_hex.get(band["hex"].upper(), band["hex"])
+
+    # human-readable swap schedule
+    sched_name = "%s_swaps.txt" % stem
+    sched_path = os.path.join(session.out_dir, sched_name)
+    lines = [
+        "ColorPlate — single-extruder filament-swap schedule",
+        "%s  ·  %gmm  ·  base %gmm  ·  step %gmm  ·  layer %gmm" % (
+            stem, size_mm, base_mm, step_mm, layer_mm),
+        "Total height: %gmm   ·   %d filament change(s)" % (total, max(0, len(order) - 1)),
+        "",
+        "Print %s as a single object. Insert a filament change (M600) at each swap." % stl_name,
+        "",
+    ]
+    for band in bands:
+        verb = "Start" if band["action"] == "start" else "Swap "
+        lines.append("  %s  %-14s %-9s  layer %-4d  z %.2fmm" % (
+            verb, band["name"], "(" + band["hex"] + ")", band["layer"], band["z0"]))
+    with open(sched_path, "w") as fh:
+        fh.write("\n".join(lines) + "\n")
+    written.append(sched_path)
+    files.append(GenFile(sched_name, "#9A9AA1", os.path.getsize(sched_path) / 1e6))
+
+    # manifest
+    man_name = "%s_manifest.json" % stem
+    man_path = os.path.join(session.out_dir, man_name)
+    with open(man_path, "w") as fh:
+        json.dump({
+            "mode": "single-extruder",
+            "size_mm": size_mm, "base_mm": base_mm, "step_mm": step_mm,
+            "layer_mm": layer_mm, "total_mm": round(total, 2), "stl": stl_name,
+            "bands": [{
+                "name": b["name"], "hex": b["hex"], "rgb": list(hex_to_rgb(b["hex"])),
+                "action": b["action"], "z_mm": b["z0"], "layer": b["layer"],
+            } for b in bands],
+            "note": "Single extruder: print the STL and insert an M600 at each swap layer.",
+        }, fh, indent=2)
+    written.append(man_path)
+    files.append(GenFile(man_name, "#9A9AA1", os.path.getsize(man_path) / 1e6))
+
+    # show-face preview (top view)
+    prev_name = "%s_preview.png" % stem
+    prev_path = os.path.join(session.out_dir, prev_name)
+    _write_show_preview(session, assign_hex, prev_path)
+    written.append(prev_path)
+    files.append(GenFile(prev_name, "#9A9AA1", os.path.getsize(prev_path) / 1e6))
+
+    # zip everything
+    zip_name = "%s_single_extruder.zip" % stem
+    zip_path = os.path.join(session.out_dir, zip_name)
+    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+        for p in written:
+            zf.write(p, os.path.basename(p))
+
+    return {
+        "files": [{"name": f.name, "hex": f.hex, "sizeMB": round(f.size_mb, 1)} for f in files],
+        "totalMB": round(sum(f.size_mb for f in files), 1),
+        "zip": zip_name,
+        "coverageGap": 0,
+        "totalHeight": round(total, 2),
+        "swaps": max(0, len(order) - 1),
+    }

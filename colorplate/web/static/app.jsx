@@ -41,6 +41,14 @@ const api = {
     if (!r.ok) throw await apiErr(r);
     return r.json();
   },
+  async generateStack(payload) {
+    const r = await fetch("/api/generate-stack", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!r.ok) throw await apiErr(r);
+    return r.json();
+  },
 };
 
 function App() {
@@ -194,6 +202,22 @@ function App() {
         uploadId,
         assignments: regions.map((r) => ({ name: r.filament.name, hex: r.filament.hex })),
         size, front, back: backThick, backing,
+      });
+      setResult(resp);
+      setPhase("results");
+    } catch (e) {
+      setError(e.message);
+      setPhase("loaded");
+    }
+  };
+
+  const generateSingle = async () => {
+    setPhase("generating"); setError(null);
+    try {
+      const resp = await api.generateStack({
+        uploadId,
+        assignments: regions.map((r) => ({ name: r.filament.name, hex: r.filament.hex })),
+        order, size, base: baseH, step: stepH, layer: layerH,
       });
       setResult(resp);
       setPhase("results");
@@ -363,8 +387,10 @@ function App() {
             <div className="sticky-foot">
               {error && loaded ? <div className="dz-err" style={{ marginBottom: 8, textAlign: "center" }}>{error}</div> : null}
               {printer === "single" ? (
-                <button className="btn-primary" disabled title="Single-extruder export is not wired up in this prototype">
-                  <Icons.cube size={17} /> Export STL + swaps — prototype
+                <button className="btn-primary" disabled={!loaded || phase === "generating"} onClick={generateSingle}>
+                  {phase === "generating"
+                    ? <><Icons.spinner size={17} className="spin" /> Building terraced STL…</>
+                    : <><Icons.cube size={17} /> Export STL + swap schedule</>}
                 </button>
               ) : (
                 <button className="btn-primary" disabled={!loaded || phase === "generating"} onClick={generate}>
@@ -385,7 +411,9 @@ function App() {
                   <h4>{result.files.length} files ready</h4>
                   <span className="mono" style={{ marginLeft: "auto", fontSize: 11, color: "var(--text-3)" }}>{result.totalMB.toFixed(1)} MB total</span>
                 </div>
-                <div className="hint" style={{ marginTop: 6 }}>One STL per filament color, plus the backing plate. Load them into your slicer as a single multi-color object.</div>
+                <div className="hint" style={{ marginTop: 6 }}>{printer === "single"
+                  ? <>One terraced STL ({result.totalHeight}mm tall) plus a swap schedule. Print as one object on a single nozzle, inserting an <code>M600</code> at each swap layer.</>
+                  : "One STL per filament color, plus the backing plate. Load them into your slicer as a single multi-color object."}</div>
               </div>
               <div className="rs-list">
                 {result.files.map((f, i) => (
@@ -474,7 +502,9 @@ function App() {
                   <span className="sep">·</span>
                   <span className="k">~{size}mm</span>
                   <span className="sep">·</span>
-                  <span className="k">{(front + backThick).toFixed(1)}mm thick</span>
+                  <span className="k">{printer === "single"
+                    ? schedule.total + "mm tall · " + Math.max(0, order.length - 1) + " swaps"
+                    : (front + backThick).toFixed(1) + "mm thick"}</span>
                   <span className="swrow">
                     {distinct.map((f) => <span key={f.hex} className="mini" style={{ background: f.hex }} title={f.name} />)}
                   </span>

@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Single-extruder mode** in the web GUI: a Printer toggle
+  (Multi-material ⟷ Single extruder). Single-extruder builds a terraced relief —
+  each color rises to its own Z band so one nozzle can print it with an `M600`
+  swap between bands — with a live 3D preview, reorderable base→top color stack,
+  and a filament-swap schedule (Z height + layer per swap, snapped to the layer
+  height). Export produces one watertight terraced STL plus the swap schedule,
+  a manifest, and a show-face preview, bundled as a zip
+  (`POST /api/stack3d`, `POST /api/generate-stack`).
+
 - Full test suite (47 tests) covering the core pipeline (raster loading,
   detection/quantization, classification, mesh building, end-to-end plate
   generation), the CLI, the web service + HTTP API, and analytics (including the

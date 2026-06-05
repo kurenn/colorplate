@@ -95,6 +95,16 @@ class GenerateReq(BaseModel):
     backing: str | None = None        # filament hex or null
 
 
+class StackGenerateReq(BaseModel):
+    uploadId: str
+    assignments: list[Filament]       # one per region, in order
+    order: list[str]                  # distinct filament hexes, base -> top
+    size: float
+    base: float
+    step: float
+    layer: float
+
+
 # ---- routes ----------------------------------------------------------------
 @app.get("/", response_class=HTMLResponse)
 def index() -> HTMLResponse:
@@ -188,6 +198,26 @@ def api_generate(request: Request, req: GenerateReq):
     analytics.record("generate", request, files=len(result["files"]),
                      total_mb=result["totalMB"], size_mm=req.size,
                      backing=bool(req.backing), ms=round((time.monotonic() - t0) * 1000))
+    return result
+
+
+@app.post("/api/generate-stack")
+def api_generate_stack(request: Request, req: StackGenerateReq):
+    session = _require(req.uploadId)
+    try:
+        t0 = time.monotonic()
+        result = service.generate_stack(
+            session,
+            [a.model_dump() for a in req.assignments],
+            req.order,
+            size_mm=req.size, base_mm=max(0.1, req.base),
+            step_mm=max(0.1, req.step), layer_mm=max(0.04, req.layer),
+        )
+    except Exception as exc:
+        raise HTTPException(500, f"Single-extruder export failed: {exc}")
+    analytics.record("generate", request, mode="single", files=len(result["files"]),
+                     total_mb=result["totalMB"], size_mm=req.size,
+                     swaps=result["swaps"], ms=round((time.monotonic() - t0) * 1000))
     return result
 
 
