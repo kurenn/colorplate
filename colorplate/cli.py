@@ -45,6 +45,8 @@ def build_parser() -> argparse.ArgumentParser:
                    help="Target color count when auto-quantizing a raster (default: 4)")
     p.add_argument("--raster-px", type=int, default=1600,
                    help="Rasterization resolution on the long edge (default: 1600)")
+    p.add_argument("--nozzle", type=float, default=0.4,
+                   help="Nozzle line width in mm; warns about thinner features (default: 0.4)")
 
     se = p.add_argument_group("single-extruder (filament swaps, no MMU)")
     se.add_argument("--single-extruder", action="store_true",
@@ -68,6 +70,7 @@ def main(argv: list[str] | None = None) -> int:
         backing_color=args.backing_color,
         raster_px=args.raster_px,
         auto_colors=args.colors,
+        nozzle_mm=args.nozzle,
         palette=_parse_palette(args.palette) if args.palette else [],
     )
 
@@ -85,6 +88,7 @@ def main(argv: list[str] | None = None) -> int:
         for b in res.bands:
             verb = "start" if b["action"] == "start" else "swap "
             print(f"  layer {b['layer']:<4d} z {b['z0']:.2f}mm  {verb}  {b['hex']}")
+        _print_printability(res.printability)
         return 0
 
     result = PlatePipeline(cfg).run(args.input, args.out)
@@ -98,7 +102,25 @@ def main(argv: list[str] | None = None) -> int:
         print(f"WARNING: {result.gap_px} uncovered pixels (gaps in tiling)", file=sys.stderr)
     else:
         print("Coverage: 100% (no gaps)")
+    _print_printability(result.printability)
     return 0
+
+
+def _print_printability(rep: dict | None) -> None:
+    """Print thin-feature warnings to stderr (like the coverage-gap warning)."""
+    if not rep or rep.get("worst") == "ok":
+        return
+    for c in rep["colors"]:
+        if c["level"] == "ok":
+            continue
+        what = ("would vanish" if c.get("vanish") else "won't print reliably") \
+            if c["level"] == "wontprint" else "is fragile"
+        w = f" (~{c['narrowestMm']}mm)" if c.get("narrowestMm") else ""
+        print(f"WARNING: color '{c['key']}' {what}{w} at {rep['nozzleMm']}mm nozzle",
+              file=sys.stderr)
+    if rep.get("suggestedSizeMm"):
+        print(f"  → scale up to ~{rep['suggestedSizeMm']}mm to clear thin features",
+              file=sys.stderr)
 
 
 if __name__ == "__main__":

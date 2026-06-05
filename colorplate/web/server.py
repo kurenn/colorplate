@@ -86,6 +86,12 @@ class Stack3DReq(BaseModel):
     layer: float
 
 
+class PrintabilityReq(BaseModel):
+    uploadId: str
+    size: float
+    nozzle: float
+
+
 class GenerateReq(BaseModel):
     uploadId: str
     assignments: list[Filament]       # one per region, in order
@@ -180,6 +186,17 @@ def api_stack3d(req: Stack3DReq):
         )
     except Exception as exc:  # pragma: no cover - defensive
         raise HTTPException(500, f"Single-extruder preview failed: {exc}")
+
+
+@app.post("/api/printability")
+def api_printability(req: PrintabilityReq):
+    session = _require(req.uploadId)
+    try:
+        return service.printability(
+            session, size_mm=max(1.0, req.size), nozzle_mm=max(0.05, req.nozzle),
+        )
+    except Exception as exc:  # pragma: no cover - defensive
+        raise HTTPException(500, f"Printability check failed: {exc}")
 
 
 @app.post("/api/generate")

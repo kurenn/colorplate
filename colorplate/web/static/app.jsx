@@ -49,6 +49,14 @@ const api = {
     if (!r.ok) throw await apiErr(r);
     return r.json();
   },
+  async printability(uploadId, size, nozzle) {
+    const r = await fetch("/api/printability", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ uploadId, size, nozzle }),
+    });
+    if (!r.ok) throw await apiErr(r);
+    return r.json();
+  },
 };
 
 // ---- onboarding tour -------------------------------------------------------
@@ -69,6 +77,51 @@ const TOUR_STEPS = [
   { selector: '[data-tour="generate"]', title: "6 · Generate & print",
     body: "Export watertight STLs (plus a backing plate, or a filament-swap schedule for single extruder) bundled in a zip — ready to slice. That's it!" },
 ];
+
+// ---- printability warnings panel ------------------------------------------
+function PrintabilityPanel({ report, regions, showRisk, onToggleRisk, onApplySize }) {
+  if (!report) return <div className="hint">Your printer's nozzle / line width.</div>;
+  const bad = report.colors.filter((c) => c.level !== "ok");
+  if (!bad.length) {
+    return <div className="hint" style={{ color: "var(--text-2)", display: "flex", alignItems: "center", gap: 6 }}>
+      <Icons.check size={12} /> All features print cleanly at {report.sizeMm}mm.
+    </div>;
+  }
+  const filFor = (i) => (regions[i] && regions[i].filament) || { name: "color " + (i + 1), hex: "#999" };
+  return (
+    <div className="risk">
+      {bad.map((c) => {
+        const f = filFor(c.index);
+        const wont = c.level === "wontprint";
+        return (
+          <div className="risk-row" key={c.index}>
+            <span className="sw" style={{ background: f.hex }} />
+            <span className="snm">{f.name}</span>
+            <span className={"risk-tag " + (wont ? "bad" : "warn")}>
+              {wont ? (c.vanish ? "would vanish" : "won't print") : "fragile"}
+            </span>
+            {c.narrowestMm ? <span className="risk-w mono">~{c.narrowestMm}mm</span> : null}
+          </div>
+        );
+      })}
+      <div className="hint" style={{ marginTop: 8 }}>
+        Some features are thinner than the {report.nozzleMm}mm nozzle line.
+      </div>
+      <div className="risk-foot">
+        {report.suggestedSizeMm
+          ? <button className="risk-apply" onClick={() => onApplySize(report.suggestedSizeMm)}>
+              <Icons.warn size={13} /> Bump size to {report.suggestedSizeMm}mm
+            </button>
+          : null}
+        {report.overlay
+          ? <label className="risk-toggle">
+              <input type="checkbox" checked={showRisk} onChange={onToggleRisk} /> Highlight
+            </label>
+          : null}
+      </div>
+    </div>
+  );
+}
 
 function App() {
   const [theme, setTheme] = useState(() => document.documentElement.getAttribute("data-theme") || "light");
@@ -104,6 +157,9 @@ function App() {
   const [tourOpen, setTourOpen] = useState(false);
   const [maxColors, setMaxColors] = useState(4);
   const [size, setSize] = useState(180);
+  const [nozzle, setNozzle] = useState(0.4);
+  const [printable, setPrintable] = useState(null);   // printability report
+  const [showRisk, setShowRisk] = useState(true);     // 2D at-risk overlay
   const [front, setFront] = useState(1.0);
   const [backThick, setBackThick] = useState(2.0);
   const [regions, setRegions] = useState([]);
@@ -139,6 +195,20 @@ function App() {
   }, [distinct]);
 
   const filamentByHex = (hex) => distinct.find((f) => f.hex === hex) || { name: hex, hex };
+
+  // Printability check — debounced, refetched when the geometry-affecting inputs
+  // (file, color count, size, nozzle) change. Independent of filament colors.
+  useEffect(() => {
+    if (!loaded || !uploadId) { setPrintable(null); return; }
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      try {
+        const rep = await api.printability(uploadId, size, nozzle);
+        if (!cancelled) setPrintable(rep);
+      } catch (e) { /* leave last report on transient error */ }
+    }, 300);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [uploadId, maxColors, size, nozzle, loaded]);
 
   // client-side swap schedule (mirrors the server's layer snapping)
   const schedule = useMemo(() => {
@@ -337,6 +407,20 @@ function App() {
               <div className="hint">Longest dimension of the finished plate.</div>
             </div>
 
+            {/* nozzle + printability */}
+            <div className={"group" + (loaded ? "" : " is-disabled")} data-tour="printability">
+              <div className="section-label">Nozzle &amp; printability
+                {printable && printable.worst !== "ok"
+                  ? <span className="n" style={{ color: printable.worst === "wontprint" ? "#e0533d" : "#d9971f" }}>
+                      {printable.colors.filter((c) => c.level !== "ok").length}</span>
+                  : null}
+              </div>
+              <NumberField value={nozzle} onChange={setNozzle} unit="mm" step={0.1} min={0.2} decimals={1} />
+              <PrintabilityPanel report={printable} regions={regions}
+                                 showRisk={showRisk} onToggleRisk={() => setShowRisk((v) => !v)}
+                                 onApplySize={(z) => setSize(z)} />
+            </div>
+
             {printer === "mmu" ? (
               <>
                 {/* thickness */}
@@ -514,7 +598,12 @@ function App() {
                 </div>
               ) : loaded && preview ? (
                 <div className="stage-card">
-                  <img className="emblem-box art-preview" src={preview} alt="recolored logo preview" />
+                  <div className="art-wrap">
+                    <img className="emblem-box art-preview" src={preview} alt="recolored logo preview" />
+                    {showRisk && printable && printable.overlay
+                      ? <img className="risk-overlay" src={printable.overlay} alt="at-risk areas" />
+                      : null}
+                  </div>
                   <div className="stage-legend">
                     {distinct.map((f) => (
                       <div className="legchip" key={f.hex}>

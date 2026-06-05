@@ -45,6 +45,10 @@ class PlateConfig:
     # Drop traced islands smaller than this area (mm^2) to remove speckle.
     min_area_mm2: float = 0.3
 
+    # Nozzle line width (mm) used by the printability check to flag features
+    # that are too thin to print at the chosen size.
+    nozzle_mm: float = 0.4
+
     # Explicit palette. If empty, the pipeline auto-discovers colors
     # (from SVG fills/strokes, or by quantization for rasters).
     palette: list[Color] = field(default_factory=list)

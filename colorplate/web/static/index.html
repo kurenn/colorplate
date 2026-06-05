@@ -369,6 +369,30 @@
     border-radius:5px; padding:2px 6px; flex:none;
   }
 
+  /* ---------- PRINTABILITY ---------- */
+  .risk{ display:flex; flex-direction:column; gap:6px; margin-top:4px; }
+  .risk-row{
+    display:flex; align-items:center; gap:9px; padding:7px 10px;
+    border:1px solid var(--border); border-radius:var(--radius-sm); background:var(--bg-2);
+  }
+  .risk-row .sw{ width:16px; height:16px; border-radius:5px; flex:none; box-shadow: inset 0 0 0 1px rgba(127,127,127,.3); }
+  .risk-row .snm{ font-size:13px; font-weight:600; }
+  .risk-tag{ font-family:var(--font-mono); font-size:10px; font-weight:600; padding:2px 7px; border-radius:999px; letter-spacing:.02em; }
+  .risk-tag.bad{ color:#e0533d; background:color-mix(in oklab,#e0533d 14%, transparent); }
+  .risk-tag.warn{ color:#c8881a; background:color-mix(in oklab,#d9971f 16%, transparent); }
+  .risk-row .risk-w{ margin-left:auto; font-size:11px; color:var(--text-3); }
+  .risk-foot{ display:flex; align-items:center; gap:10px; margin-top:2px; flex-wrap:wrap; }
+  .risk-apply{
+    display:inline-flex; align-items:center; gap:6px; font-family:var(--font-ui); font-size:12px; font-weight:600;
+    color:var(--accent-text); background:var(--accent); border:0; border-radius:var(--radius-sm); padding:7px 11px; cursor:pointer;
+    transition: all var(--speed) ease;
+  }
+  .risk-apply:hover{ background:var(--accent-strong); }
+  .risk-toggle{ display:inline-flex; align-items:center; gap:6px; font-size:11.5px; color:var(--text-2); cursor:pointer; margin-left:auto; }
+  .risk-toggle input{ accent-color:var(--accent); }
+  .art-wrap{ position:relative; display:inline-flex; }
+  .risk-overlay{ position:absolute; left:0; top:0; width:100%; height:100%; pointer-events:none; image-rendering:pixelated; }
+
   /* ---------- GUIDED TOUR ---------- */
   .tour-block{ position:fixed; inset:0; z-index:1000; cursor:default; }
   .tour-spot{

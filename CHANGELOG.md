@@ -7,7 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-06-05
+
 ### Added
+- **Printability guardrails** (CLI + web GUI). Detects color regions with features
+  thinner than the nozzle line width at the chosen print size — strands the slicer
+  would skip or print fragile — and flags colors so thin they'd vanish entirely.
+  The GUI shows a per-color warnings panel, highlights the at-risk areas on the 2D
+  preview, and offers a one-click "bump size to ~X mm" fix; the CLI prints a
+  warning per color. Configurable nozzle width (`--nozzle`, default 0.4 mm); the
+  report is written into the manifest. Warns only — nothing is blocked.
+  Backed by a shared `colorplate/printability.py` and `POST /api/printability`.
 - A short **guided tour** of the web GUI for first-time visitors — a spotlight
   walkthrough of the drop → printer → colors → size → preview → generate flow.
   Auto-shows once per browser and can be replayed from the "?" button. No
@@ -80,7 +90,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Graphical README with brand assets (hero banner, logo, pipeline graphic,
   GUI screenshots) and an MIT license.
 
-[Unreleased]: https://github.com/kurenn/colorplate/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/kurenn/colorplate/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/kurenn/colorplate/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/kurenn/colorplate/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/kurenn/colorplate/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/kurenn/colorplate/compare/v0.1.0...v0.2.0
