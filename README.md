@@ -10,6 +10,7 @@ face-down multi-material 3D printing (toolchanger / MMU).
 <br/>
 
 [![PyPI](https://img.shields.io/pypi/v/colorplate?style=for-the-badge&labelColor=231F1D&color=F9CF26)](https://pypi.org/project/colorplate/)
+[![CI](https://img.shields.io/github/actions/workflow/status/kurenn/colorplate/ci.yml?branch=main&style=for-the-badge&labelColor=231F1D&label=tests)](https://github.com/kurenn/colorplate/actions/workflows/ci.yml)
 [![Live demo](https://img.shields.io/badge/live-colorplate.spoolr.io-FBD732?style=for-the-badge&labelColor=231F1D)](https://colorplate.spoolr.io/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-A8DFDF?style=for-the-badge&labelColor=231F1D)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-ED4324?style=for-the-badge&labelColor=231F1D)](pyproject.toml)
