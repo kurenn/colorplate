@@ -35,6 +35,9 @@ from PIL import Image
 from ..config import PlateConfig
 from ..mesh import MeshBuilder
 from ..raster import RasterLoader
+from ..stack import merge_terrace
+from ..stack import snap as _snap
+from ..stack import swap_bands as _swap_bands
 
 # ----------------------------------------------------------------------------
 # Filament presets — the built-in palette (exact values from the design spec).
@@ -371,13 +374,6 @@ def build_mesh3d(session: Session, *, size_mm: float, front_mm: float,
     }
 
 
-def _snap(value: float, layer: float) -> float:
-    """Round a height to the nearest whole layer (min one layer) — filament
-    swaps can only land on a layer boundary."""
-    layer = max(0.04, layer)
-    return max(layer, round(value / layer) * layer)
-
-
 def _stack_slabs(session: Session, assignments: list[str], order: list[str],
                  size_mm: float, base_mm: float, step_mm: float) -> tuple[list[dict], float]:
     """Build the terrace as horizontal band-slabs (shared by preview + export).
@@ -414,23 +410,6 @@ def _stack_slabs(session: Session, assignments: list[str], order: list[str],
         slabs.append({"band": b, "color": order[b], "mesh": mesh})
     total = base_mm + (nbands - 1) * step_mm
     return slabs, total
-
-
-def _swap_bands(order: list[str], base_mm: float, step_mm: float, layer_mm: float) -> list[dict]:
-    """Filament-swap schedule: for each color (base->top), its Z band and the
-    layer where the swap happens (band 0 is the start, not a swap)."""
-    bands = []
-    for b, hexv in enumerate(order):
-        if b == 0:
-            z0, z1, action = 0.0, base_mm, "start"
-        else:
-            z0, z1, action = base_mm + (b - 1) * step_mm, base_mm + b * step_mm, "swap"
-        bands.append({
-            "band": b, "hex": hexv, "action": action,
-            "z0": round(z0, 2), "z1": round(z1, 2),
-            "layer": int(round(z0 / max(0.04, layer_mm))) + 1,
-        })
-    return bands
 
 
 def build_stack3d(session: Session, *, assignments: list[str], order: list[str],
@@ -619,8 +598,6 @@ def generate_stack(session: Session, assignments: list[dict], order: list[str], 
     bundled into a zip. The print is one object on one nozzle; the operator
     inserts an ``M600`` at each swap layer in the schedule.
     """
-    import trimesh
-
     base_mm = _snap(base_mm, layer_mm)
     step_mm = _snap(step_mm, layer_mm)
     if not order:
@@ -635,14 +612,7 @@ def generate_stack(session: Session, assignments: list[dict], order: list[str], 
     if not meshes:
         raise ValueError("Nothing printable to export.")
 
-    # Merge the slabs into one solid. Prefer a clean boolean union; fall back to
-    # concatenation (slicers union overlapping shells anyway) if no CSG backend.
-    try:
-        solid = trimesh.boolean.union(meshes)
-        if solid is None or solid.is_empty:
-            raise ValueError("empty union")
-    except Exception:
-        solid = trimesh.util.concatenate(meshes)
+    solid = merge_terrace(meshes)
 
     written: list[str] = []
     files: list[GenFile] = []

@@ -95,6 +95,11 @@ colorplate logo.svg -o out/ --height 180 \
 
 # Raster with no known palette: quantize to N colors
 colorplate art.png -o out/ --colors 4 --backing-color c0
+
+# Single extruder (no MMU): one terraced STL + a filament-swap schedule
+colorplate logo.svg -o out/ --height 180 \
+  --palette "dark=#231F1D,gold=#F9CF26,red=#ED4324,white=#FEFEFE" \
+  --single-extruder --step 0.6
 ```
 
 ### Key options
@@ -107,6 +112,25 @@ colorplate art.png -o out/ --colors 4 --backing-color c0
 | `--backing-color` | color name for the single-color back (omit = no backing) | none |
 | `--palette` | `name=#hex,...`; omit to auto-detect | auto |
 | `--colors` | target colors when quantizing a raster | 4 |
+| `--single-extruder` | stack colors by height into one terraced STL + swap schedule | off |
+| `--base` / `--step` | base-plate / per-color band height for single-extruder (mm) | 0.8 / 0.6 |
+| `--layer-height` | layer height that filament swaps snap to (mm) | 0.2 |
+
+### Single extruder (no MMU)
+
+Don't have a toolchanger or MMU? A single nozzle can only print one filament per
+layer, so `--single-extruder` **stacks the colors by height** into one terraced
+relief: a full base plate in the first palette color, then each subsequent color
+raised one `--step` higher (palette order is base → top). You get **one STL**
+plus a `*_swaps.txt` schedule telling you which layer to insert a filament change
+(`M600`) at — printable on any single-extruder machine.
+
+```
+  layer 1    z 0.00mm  start  #231F1D
+  layer 5    z 0.80mm  swap   #F9CF26
+  layer 8    z 1.40mm  swap   #ED4324
+  layer 11   z 2.00mm  swap   #F4F4F4
+```
 
 ## 🖥️ Web GUI
 
@@ -135,6 +159,10 @@ What it does (all real, no mocks):
 - **Generate** — one watertight STL per distinct assigned filament (regions sharing
   a filament are merged), plus an optional single-color backing plate, a flat-color
   preview PNG, and a manifest — bundled into a downloadable `.zip`.
+- **Single extruder** — flip the **Printer** toggle to *Single extruder* to stack
+  the colors into a terraced relief instead (same as the CLI's `--single-extruder`):
+  reorder the base→top stack, see it restack live in 3D, and export one terraced
+  STL plus the filament-swap schedule.
 
 Endpoints live under `/api/*`; the static UI is plain React-via-Babel (no build
 step). Tiny detail: auto-detection is quantization-based, so a very small distinct
