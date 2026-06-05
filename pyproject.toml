@@ -1,6 +1,6 @@
 [project]
 name = "colorplate"
-version = "0.3.0"
+version = "0.3.1"
 description = "Turn SVG/PNG artwork into layered, gap-free multicolor STL plates for face-down multi-material 3D printing."
 readme = "README.md"
 license = "MIT"
