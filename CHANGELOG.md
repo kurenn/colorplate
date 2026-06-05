@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-06-05
+
 ### Added
 - Packaging metadata for discoverability — PyPI keywords, trove classifiers,
   project URLs (homepage, repository, issues, changelog), and an author/contact
@@ -72,7 +74,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Graphical README with brand assets (hero banner, logo, pipeline graphic,
   GUI screenshots) and an MIT license.
 
-[Unreleased]: https://github.com/kurenn/colorplate/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/kurenn/colorplate/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/kurenn/colorplate/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/kurenn/colorplate/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/kurenn/colorplate/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/kurenn/colorplate/releases/tag/v0.1.0
