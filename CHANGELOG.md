@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- A short **guided tour** of the web GUI for first-time visitors — a spotlight
+  walkthrough of the drop → printer → colors → size → preview → generate flow.
+  Auto-shows once per browser and can be replayed from the "?" button. No
+  dependencies (a small self-contained component).
+
 ## [0.3.1] - 2026-06-05
 
 ### Added
