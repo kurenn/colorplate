@@ -15,8 +15,9 @@ face-down multi-material 3D printing (toolchanger / MMU).
 [![License: MIT](https://img.shields.io/badge/license-MIT-A8DFDF?style=for-the-badge&labelColor=231F1D)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-ED4324?style=for-the-badge&labelColor=231F1D)](pyproject.toml)
 [![CLI + Web GUI](https://img.shields.io/badge/CLI%20%2B%20Web%20GUI-D11A2A?style=for-the-badge&labelColor=231F1D)](#-web-gui)
+[![Buy me a coffee](https://img.shields.io/badge/buy_me_a_coffee-F9CF26?style=for-the-badge&labelColor=231F1D&logo=buymeacoffee&logoColor=231F1D)](https://buymeacoffee.com/kurito)
 
-🌐 **[Live demo](https://colorplate.spoolr.io/)** &nbsp;·&nbsp; ⚡ **[Quick start](#-quick-start)** &nbsp;·&nbsp; 🖥️ **[Web GUI](#-web-gui)** &nbsp;·&nbsp; 🛠️ **[How it works](#-how-it-works)**
+🌐 **[Live demo](https://colorplate.spoolr.io/)** &nbsp;·&nbsp; ⚡ **[Quick start](#-quick-start)** &nbsp;·&nbsp; 🖥️ **[Web GUI](#-web-gui)** &nbsp;·&nbsp; 🛠️ **[How it works](#-how-it-works)** &nbsp;·&nbsp; ☕ **[Buy me a coffee](https://buymeacoffee.com/kurito)**
 
 </div>
 
@@ -255,6 +256,8 @@ analytics. CI runs it on every push and pull request across Python 3.10 & 3.12.
 Questions, bugs, or ideas? Open an issue on
 [GitHub](https://github.com/kurenn/colorplate/issues) or email
 **[k@altmail.kr](mailto:k@altmail.kr)**.
+
+If ColorPlate saved you some CAD time, you can ☕ **[buy me a coffee](https://buymeacoffee.com/kurito)** — much appreciated!
 
 ## License
 

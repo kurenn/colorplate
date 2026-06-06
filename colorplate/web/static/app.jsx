@@ -373,6 +373,10 @@ function App() {
         <a className="icon-btn" title="Contact — k@altmail.kr" href="mailto:k@altmail.kr">
           <Icons.mail size={17} />
         </a>
+        <a className="icon-btn coffee-btn" title="Buy me a coffee"
+           href="https://buymeacoffee.com/kurito" target="_blank" rel="noopener noreferrer">
+          <Icons.coffee size={17} />
+        </a>
         <button className="icon-btn" title="Toggle theme"
                 onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
           {theme === "dark" ? <Icons.moon size={16} /> : <Icons.sun size={16} />}
