@@ -158,6 +158,7 @@ function App() {
   const [tourOpen, setTourOpen] = useState(false);
   const [maxColors, setMaxColors] = useState(4);
   const [fillHoles, setFillHoles] = useState(false);
+  const [enclosedPct, setEnclosedPct] = useState(0);
   const [size, setSize] = useState(180);
   const [nozzle, setNozzle] = useState(0.4);
   const [printable, setPrintable] = useState(null);   // printability report
@@ -241,6 +242,7 @@ function App() {
     setFile(resp.filename);
     setRegions(resp.regions);
     setPreview(resp.preview);
+    setEnclosedPct(resp.enclosedPct || 0);
     setBacking(resp.regions.length ? resp.regions[0].filament.hex : null);
   };
 
@@ -422,6 +424,16 @@ function App() {
                   </span>
                 </span>
               </label>
+              {loaded && !fillHoles && enclosedPct >= 0.05 && (
+                <div className="fill-nudge">
+                  <Icons.warn size={15} />
+                  <div>
+                    This logo has large blank areas inside it (~{Math.round(enclosedPct * 100)}%).
+                    Turn this on to paint them — otherwise they'll print hollow.
+                    <button className="fill-nudge-btn" onClick={toggleFill} disabled={busy}>Turn on</button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* color config */}
