@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-06-05
+
+### Added
+- **Fill enclosed areas** (CLI + web GUI). Blank spaces *inside* a design — letter
+  interiors, the holes in an outlined mark — that match the background were
+  detected as background and left as empty gaps. Tick "Fill enclosed areas" in
+  the GUI (or pass `--fill-holes`) to fold those enclosed regions into the
+  silhouette so they're detected as their own color and become paintable.
+  Background that touches the image border (the real outside) is left out.
+
 ## [0.4.0] - 2026-06-05
 
 ### Added
@@ -90,7 +100,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Graphical README with brand assets (hero banner, logo, pipeline graphic,
   GUI screenshots) and an MIT license.
 
-[Unreleased]: https://github.com/kurenn/colorplate/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/kurenn/colorplate/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/kurenn/colorplate/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/kurenn/colorplate/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/kurenn/colorplate/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/kurenn/colorplate/compare/v0.2.0...v0.3.0

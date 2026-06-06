@@ -47,6 +47,9 @@ def build_parser() -> argparse.ArgumentParser:
                    help="Rasterization resolution on the long edge (default: 1600)")
     p.add_argument("--nozzle", type=float, default=0.4,
                    help="Nozzle line width in mm; warns about thinner features (default: 0.4)")
+    p.add_argument("--fill-holes", action="store_true",
+                   help="Fill enclosed blank areas (e.g. letter interiors) so they "
+                        "become paintable regions instead of empty gaps.")
 
     se = p.add_argument_group("single-extruder (filament swaps, no MMU)")
     se.add_argument("--single-extruder", action="store_true",
@@ -71,6 +74,7 @@ def main(argv: list[str] | None = None) -> int:
         raster_px=args.raster_px,
         auto_colors=args.colors,
         nozzle_mm=args.nozzle,
+        fill_holes=args.fill_holes,
         palette=_parse_palette(args.palette) if args.palette else [],
     )
 

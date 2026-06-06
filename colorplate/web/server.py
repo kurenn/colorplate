@@ -57,6 +57,7 @@ app.mount("/static", _RevalidatingStatic(directory=STATIC_DIR), name="static")
 class RedetectReq(BaseModel):
     uploadId: str
     maxColors: int
+    fillHoles: bool = False
 
 
 class PreviewReq(BaseModel):
@@ -119,7 +120,8 @@ def index() -> HTMLResponse:
 
 
 @app.post("/api/detect")
-async def api_detect(request: Request, file: UploadFile, maxColors: int = Form(4)):
+async def api_detect(request: Request, file: UploadFile, maxColors: int = Form(4),
+                     fillHoles: bool = Form(False)):
     name = file.filename or "logo.svg"
     ext = os.path.splitext(name)[1].lower()
     if ext not in _ACCEPT:
@@ -136,7 +138,7 @@ async def api_detect(request: Request, file: UploadFile, maxColors: int = Form(4
 
     try:
         session, payload = service.load_session(
-            sid, name, src_path, out_dir, _clamp_colors(maxColors)
+            sid, name, src_path, out_dir, _clamp_colors(maxColors), fill_holes=fillHoles
         )
     except Exception as exc:
         service._cleanup_dir(out_dir)
@@ -151,7 +153,8 @@ async def api_detect(request: Request, file: UploadFile, maxColors: int = Form(4
 @app.post("/api/redetect")
 def api_redetect(request: Request, req: RedetectReq):
     session = _require(req.uploadId)
-    payload = service.detect_from_path(session, _clamp_colors(req.maxColors))
+    payload = service.detect_from_path(session, _clamp_colors(req.maxColors),
+                                       fill_holes=req.fillHoles)
     analytics.record("redetect", request, max_colors=_clamp_colors(req.maxColors),
                      regions=len(payload["regions"]))
     return payload

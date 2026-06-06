@@ -9,18 +9,19 @@ async function apiErr(r) {
   catch (e) { return new Error(r.statusText || "Request failed"); }
 }
 const api = {
-  async detect(file, maxColors) {
+  async detect(file, maxColors, fillHoles) {
     const fd = new FormData();
     fd.append("file", file);
     fd.append("maxColors", String(maxColors));
+    fd.append("fillHoles", fillHoles ? "true" : "false");
     const r = await fetch("/api/detect", { method: "POST", body: fd });
     if (!r.ok) throw await apiErr(r);
     return r.json();
   },
-  async redetect(uploadId, maxColors) {
+  async redetect(uploadId, maxColors, fillHoles) {
     const r = await fetch("/api/redetect", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ uploadId, maxColors }),
+      body: JSON.stringify({ uploadId, maxColors, fillHoles }),
     });
     if (!r.ok) throw await apiErr(r);
     return r.json();
@@ -156,6 +157,7 @@ function App() {
   const [view, setView] = useState("2d");             // 2d recolor | 3d geometry
   const [tourOpen, setTourOpen] = useState(false);
   const [maxColors, setMaxColors] = useState(4);
+  const [fillHoles, setFillHoles] = useState(false);
   const [size, setSize] = useState(180);
   const [nozzle, setNozzle] = useState(0.4);
   const [printable, setPrintable] = useState(null);   // printability report
@@ -245,10 +247,26 @@ function App() {
   const loadFile = async (f) => {
     setBusy(true); setError(null);
     try {
-      const resp = await api.detect(f, maxColors);
+      const resp = await api.detect(f, maxColors, fillHoles);
       applyDetection(resp);
       setResult(null);
       setPhase("loaded");
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const toggleFill = async () => {
+    const next = !fillHoles;
+    setFillHoles(next);
+    if (!loaded || !uploadId) return;
+    setBusy(true); setError(null);
+    try {
+      const resp = await api.redetect(uploadId, maxColors, next);
+      applyDetection(resp);
+      if (phase === "results") { setResult(null); setPhase("loaded"); }
     } catch (e) {
       setError(e.message);
     } finally {
@@ -267,7 +285,7 @@ function App() {
     if (!loaded || !uploadId) return;
     setBusy(true); setError(null);
     try {
-      const resp = await api.redetect(uploadId, n);
+      const resp = await api.redetect(uploadId, n, fillHoles);
       applyDetection(resp);
       if (phase === "results") { setResult(null); setPhase("loaded"); }
     } catch (e) {
@@ -392,6 +410,14 @@ function App() {
               <div className="section-label">Max colors</div>
               <Segmented value={maxColors} options={[2, 3, 4, 5, 6]} onChange={changeMax} />
               <div className="hint">Most printers handle 4 at once.</div>
+              <label className={"fill-toggle" + (busy ? " is-busy" : "")}>
+                <input type="checkbox" checked={fillHoles} onChange={toggleFill} disabled={busy} />
+                <span>Fill enclosed areas
+                  <span className="hint" style={{ marginLeft: 6 }}>
+                    blank spaces inside the design (e.g. letter interiors) become paintable
+                  </span>
+                </span>
+              </label>
             </div>
 
             {/* color config */}

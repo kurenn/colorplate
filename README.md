@@ -113,6 +113,7 @@ colorplate logo.svg -o out/ --height 180 \
 | `--palette` | `name=#hex,...`; omit to auto-detect | auto |
 | `--colors` | target colors when quantizing a raster | 4 |
 | `--nozzle` | nozzle line width (mm); warns about thinner features | 0.4 |
+| `--fill-holes` | fill enclosed blank areas (e.g. letter interiors) into the design | off |
 | `--single-extruder` | stack colors by height into one terraced STL + swap schedule | off |
 | `--base` / `--step` | base-plate / per-color band height for single-extruder (mm) | 0.8 / 0.6 |
 | `--layer-height` | layer height that filament swaps snap to (mm) | 0.2 |
@@ -160,6 +161,9 @@ What it does (all real, no mocks):
 - **Printability** — flags colors with features thinner than your nozzle line
   width at the chosen size (set the nozzle, default 0.4 mm), highlights the at-risk
   areas right on the 2D preview, and offers a one-click "bump size" to fix them.
+- **Fill enclosed areas** — for logos where blank spaces inside the design (letter
+  interiors, the holes in an outlined mark) match the background, tick this to fold
+  them into the silhouette so they become paintable colors instead of empty gaps.
 - **Generate** — one watertight STL per distinct assigned filament (regions sharing
   a filament are merged), plus an optional single-color backing plate, a flat-color
   preview PNG, and a manifest — bundled into a downloadable `.zip`.
@@ -241,8 +245,10 @@ analytics. CI runs it on every push and pull request across Python 3.10 & 3.12.
   the CLI prints a warning per color (tune the nozzle with `--nozzle`).
 - The front shell must be opaque enough that the backing color doesn't ghost
   through; ~1.0 mm (5 layers @ 0.2 mm) is usually fine, bump `--front` if not.
-- Source artwork must use **filled** color regions. Pure line-art (strokes only,
-  colors as background showing through) needs a fill pass first.
+- Source artwork should use **filled** color regions. If your design has blank
+  spaces enclosed by the outline (letter interiors, an outlined mark) that match
+  the background, turn on **Fill enclosed areas** (`--fill-holes`) to make them
+  paintable instead of empty gaps.
 
 ## 📫 Contact
 
