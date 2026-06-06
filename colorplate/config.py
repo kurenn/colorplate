@@ -49,6 +49,10 @@ class PlateConfig:
     # that are too thin to print at the chosen size.
     nozzle_mm: float = 0.4
 
+    # Fill enclosed background ('holes' — e.g. white letter interiors) into the
+    # silhouette so they become paintable regions instead of empty gaps.
+    fill_holes: bool = False
+
     # Explicit palette. If empty, the pipeline auto-discovers colors
     # (from SVG fills/strokes, or by quantization for rasters).
     palette: list[Color] = field(default_factory=list)

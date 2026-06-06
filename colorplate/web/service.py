@@ -35,7 +35,7 @@ from PIL import Image
 from ..config import PlateConfig
 from ..mesh import MeshBuilder
 from ..printability import feature_report
-from ..raster import RasterLoader
+from ..raster import RasterLoader, fill_enclosed
 from ..stack import merge_terrace
 from ..stack import snap as _snap
 from ..stack import swap_bands as _swap_bands
@@ -112,7 +112,9 @@ class Session:
     src_path: str            # saved original upload (for full-res regen)
     out_dir: str             # scratch dir for generated artifacts
     rgb: np.ndarray          # (H, W, 3) int  detection-resolution color
-    sil: np.ndarray          # (H, W) bool    silhouette mask
+    sil: np.ndarray          # (H, W) bool    effective silhouette (used everywhere)
+    sil_raw: np.ndarray = field(default=None)  # (H, W) bool  silhouette before hole-fill
+    fill_holes: bool = False                   # treat enclosed blank areas as design
     labels: np.ndarray = field(default=None)   # (H, W) int region index, -1 = bg
     detected: list = field(default_factory=list)  # hex per region (dominant-first)
     weights: list = field(default_factory=list)   # area fraction per region
@@ -249,8 +251,14 @@ def _regions_payload(session: Session) -> list[dict]:
     return out
 
 
-def detect_from_path(session: Session, max_colors: int) -> dict:
-    """(Re)run detection on an already-loaded session at the given color count."""
+def detect_from_path(session: Session, max_colors: int,
+                     fill_holes: bool | None = None) -> dict:
+    """(Re)run detection on an already-loaded session at the given color count.
+    When ``fill_holes`` is set, enclosed blank areas (e.g. letter interiors) are
+    folded into the silhouette so they become paintable regions."""
+    if fill_holes is not None:
+        session.fill_holes = fill_holes
+    session.sil = fill_enclosed(session.sil_raw) if session.fill_holes else session.sil_raw
     labels, detected, weights = _quantize(session.rgb, session.sil, max_colors)
     session.labels = labels
     session.detected = detected
@@ -263,17 +271,18 @@ def detect_from_path(session: Session, max_colors: int) -> dict:
         "filename": session.filename,
         "regions": regions,
         "preview": preview,
+        "fillHoles": session.fill_holes,
     }
 
 
 def load_session(sid: str, filename: str, src_path: str, out_dir: str,
-                 max_colors: int) -> tuple[Session, dict]:
+                 max_colors: int, fill_holes: bool = False) -> tuple[Session, dict]:
     raster = RasterLoader(DETECT_PX).load(src_path)
     session = Session(
         id=sid, filename=filename, src_path=src_path, out_dir=out_dir,
-        rgb=raster.rgb, sil=raster.silhouette,
+        rgb=raster.rgb, sil=raster.silhouette, sil_raw=raster.silhouette,
     )
-    payload = detect_from_path(session, max_colors)
+    payload = detect_from_path(session, max_colors, fill_holes=fill_holes)
     return session, payload
 
 

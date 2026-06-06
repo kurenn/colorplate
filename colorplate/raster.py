@@ -12,8 +12,17 @@ from dataclasses import dataclass
 
 import numpy as np
 from PIL import Image
+from scipy.ndimage import binary_fill_holes
 
 from .config import Color
+
+
+def fill_enclosed(silhouette: np.ndarray) -> np.ndarray:
+    """Fill *enclosed* background ('holes') into the silhouette — e.g. the white
+    interiors of letters that background detection excluded — so they become
+    paintable regions. Background that touches the image border (the real
+    outside) is left out."""
+    return binary_fill_holes(silhouette)
 
 
 @dataclass
@@ -32,12 +41,15 @@ class RasterLoader:
     def __init__(self, raster_px: int = 1600):
         self.raster_px = raster_px
 
-    def load(self, path: str) -> Raster:
+    def load(self, path: str, *, fill_holes: bool = False) -> Raster:
         if path.lower().endswith(self.SVG_EXT):
             rgba = self._render_svg(path)
         else:
             rgba = self._load_raster(path)
-        return self._to_raster(rgba)
+        raster = self._to_raster(rgba)
+        if fill_holes:
+            raster.silhouette = fill_enclosed(raster.silhouette)
+        return raster
 
     # -- SVG -------------------------------------------------------------
     def _render_svg(self, path: str) -> np.ndarray:

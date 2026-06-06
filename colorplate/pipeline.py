@@ -63,7 +63,7 @@ class PlatePipeline:
         stem = os.path.splitext(os.path.basename(input_path))[0]
 
         loader = RasterLoader(self.cfg.raster_px)
-        raster = loader.load(input_path)
+        raster = loader.load(input_path, fill_holes=self.cfg.fill_holes)
 
         palette = self.cfg.palette
         if not palette and input_path.lower().endswith(".svg"):
@@ -112,7 +112,7 @@ class PlatePipeline:
         stem = os.path.splitext(os.path.basename(input_path))[0]
 
         loader = RasterLoader(self.cfg.raster_px)
-        raster = loader.load(input_path)
+        raster = loader.load(input_path, fill_holes=self.cfg.fill_holes)
         palette = self.cfg.palette
         if not palette and input_path.lower().endswith(".svg"):
             palette = RasterLoader.palette_from_svg(input_path)
