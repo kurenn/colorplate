@@ -375,6 +375,19 @@
   .fill-toggle input{ accent-color:var(--accent); margin-top:1px; flex:none; }
   .fill-toggle .hint{ display:block; font-weight:400; margin-top:1px; margin-left:0; }
   .fill-toggle.is-busy{ opacity:.55; cursor:wait; }
+  .fill-nudge{
+    display:flex; gap:9px; margin-top:9px; padding:10px 12px; border-radius:var(--radius-sm);
+    font-size:12px; line-height:1.5; color:var(--text-2);
+    background:color-mix(in oklab, var(--accent) 12%, var(--bg-2)); border:1px solid color-mix(in oklab, var(--accent) 40%, var(--border));
+  }
+  .fill-nudge > svg{ flex:none; color:var(--accent-strong); margin-top:1px; }
+  .fill-nudge-btn{
+    display:inline-block; margin-top:7px; font-family:var(--font-ui); font-size:12px; font-weight:700;
+    color:var(--accent-text); background:var(--accent); border:0; border-radius:6px; padding:5px 11px; cursor:pointer;
+    transition: all var(--speed) ease;
+  }
+  .fill-nudge-btn:hover{ background:var(--accent-strong); }
+  .fill-nudge-btn:disabled{ opacity:.5; cursor:wait; }
 
   /* ---------- PRINTABILITY ---------- */
   .risk{ display:flex; flex-direction:column; gap:6px; margin-top:4px; }

@@ -7,7 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-06-05
+
 ### Added
+- A **"Fill enclosed areas" nudge**: when a logo has significant enclosed blank
+  area, the GUI now points it out right by the toggle ("…otherwise they'll print
+  hollow") with a one-click "Turn on", so the option isn't missed. The detection
+  response reports the enclosed-area percentage.
 - A "Buy me a coffee" link in the app topbar and the README (support the project).
 
 ## [0.5.0] - 2026-06-05
@@ -103,7 +109,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Graphical README with brand assets (hero banner, logo, pipeline graphic,
   GUI screenshots) and an MIT license.
 
-[Unreleased]: https://github.com/kurenn/colorplate/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/kurenn/colorplate/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/kurenn/colorplate/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/kurenn/colorplate/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/kurenn/colorplate/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/kurenn/colorplate/compare/v0.3.0...v0.3.1

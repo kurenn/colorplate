@@ -258,7 +258,11 @@ def detect_from_path(session: Session, max_colors: int,
     folded into the silhouette so they become paintable regions."""
     if fill_holes is not None:
         session.fill_holes = fill_holes
-    session.sil = fill_enclosed(session.sil_raw) if session.fill_holes else session.sil_raw
+    filled = fill_enclosed(session.sil_raw)
+    session.sil = filled if session.fill_holes else session.sil_raw
+    # how much of the design is enclosed blank area (drives the "fill" nudge)
+    holes = int((filled & ~session.sil_raw).sum())
+    enclosed_pct = round(holes / max(1, int(filled.sum())), 3)
     labels, detected, weights = _quantize(session.rgb, session.sil, max_colors)
     session.labels = labels
     session.detected = detected
@@ -272,6 +276,7 @@ def detect_from_path(session: Session, max_colors: int,
         "regions": regions,
         "preview": preview,
         "fillHoles": session.fill_holes,
+        "enclosedPct": enclosed_pct,
     }
 
 

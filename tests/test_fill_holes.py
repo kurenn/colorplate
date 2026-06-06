@@ -49,6 +49,18 @@ def test_detect_with_fill_adds_the_interior_region():
     assert _has_near_white(on)             # interior surfaces as a paintable color
 
 
+def test_detect_reports_enclosed_pct_for_nudge():
+    sess = _holed_session()            # ~25% of the design is the enclosed hole
+    rep = service.detect_from_path(sess, 4, fill_holes=False)
+    assert rep["enclosedPct"] > 0.05   # significant -> the GUI shows the fill nudge
+    # a solid design (no enclosed holes) reports ~0
+    h = w = 100
+    solid = np.zeros((h, w), bool); solid[20:80, 20:80] = True
+    s2 = service.Session(id="s", filename="x.png", src_path="", out_dir="",
+                         rgb=np.zeros((h, w, 3), int), sil=solid, sil_raw=solid)
+    assert service.detect_from_path(s2, 4, fill_holes=False)["enclosedPct"] == 0.0
+
+
 def test_api_redetect_fill_holes(sample_session):
     from fastapi.testclient import TestClient
     sess = _holed_session()
