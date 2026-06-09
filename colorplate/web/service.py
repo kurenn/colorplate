@@ -569,7 +569,8 @@ def _paint_color_code(slot: int) -> str:
     return "%02X" % (((slot - 3) << 4) | 0x0C)
 
 
-def _write_3mf(path: str, parts: list[dict], *, model_name: str = "ColorPlate") -> None:
+def _write_3mf(path: str, parts: list[dict], *, model_name: str = "ColorPlate",
+               layer_changes: list[dict] | None = None) -> None:
     """Write a single 3MF bundling every plate as one assembled, pre-colored
     object.
 
@@ -585,6 +586,12 @@ def _write_3mf(path: str, parts: list[dict], *, model_name: str = "ColorPlate") 
     reads part names + filament slots from its own ``Metadata/model_settings``
     file, so we emit that too — giving each part its color name and its own
     extruder in the object tree instead of a generic "Object_1".
+
+    ``layer_changes`` (single-extruder mode) is an optional list of
+    ``{"top_z", "extruder", "color"}`` — a filament change at each height. When
+    given we also write ``Metadata/custom_gcode_per_layer.xml`` with a
+    ``tool_change`` per entry and ``mode=MultiAsSingle``, so a single-nozzle
+    printer pauses for the swap at each band boundary automatically.
     """
     import xml.sax.saxutils as su
 
@@ -687,6 +694,7 @@ def _write_3mf(path: str, parts: list[dict], *, model_name: str = "ColorPlate") 
         '  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>\n'
         '  <Default Extension="model" ContentType="application/vnd.ms-package.3dmanufacturing-3dmodel+xml"/>\n'
         '  <Default Extension="config" ContentType="application/vnd.bambulab-package.config+xml"/>\n'
+        '  <Default Extension="xml" ContentType="application/xml"/>\n'
         '</Types>\n'
     )
     rels = (
@@ -696,12 +704,29 @@ def _write_3mf(path: str, parts: list[dict], *, model_name: str = "ColorPlate") 
         'Type="http://schemas.microsoft.com/3dmanufacturing/2013/01/3dmodel"/>\n'
         '</Relationships>\n'
     )
+
+    # Single-extruder filament changes: one tool_change per band boundary, run
+    # as MultiAsSingle so a single-nozzle printer pauses for the swap there.
+    custom_gcode = None
+    if layer_changes:
+        rows = "\n".join(
+            '<layer top_z="%g" type="2" extruder="%d" color="%s" extra="" gcode="tool_change"/>'
+            % (lc["top_z"], lc["extruder"], _norm(lc["color"]))
+            for lc in layer_changes)
+        custom_gcode = (
+            '<?xml version="1.0" encoding="utf-8"?>\n'
+            '<custom_gcodes_per_layer>\n<plate>\n<plate_info id="1"/>\n'
+            '%s\n<mode value="MultiAsSingle"/>\n</plate>\n</custom_gcodes_per_layer>\n'
+        ) % rows
+
     with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
         z.writestr("[Content_Types].xml", content_types)
         z.writestr("_rels/.rels", rels)
         z.writestr("3D/3dmodel.model", model)
         z.writestr("Metadata/model_settings.config", model_settings)
         z.writestr("Metadata/project_settings.config", project_settings)
+        if custom_gcode:
+            z.writestr("Metadata/custom_gcode_per_layer.xml", custom_gcode)
 
 
 def generate(session: Session, assignments: list[dict], *, size_mm: float,
@@ -899,11 +924,21 @@ def generate_stack(session: Session, assignments: list[dict], order: list[str], 
     written.append(stl_path)
     files.append(GenFile(stl_name, order[0], os.path.getsize(stl_path)))
 
+    bands = _swap_bands(order, base_mm, step_mm, layer_mm)
+    for band in bands:
+        band["name"] = name_by_hex.get(band["hex"].upper(), band["hex"])
+
     # Assembled, pre-colored .3mf — same bundle as MMU, but the parts are the
-    # height bands (base -> top). Each band's triangles are painted with its
-    # filament, so opening the file shows the colors and a single-extruder
-    # printer inserts the filament changes at the band boundaries automatically
-    # (no manual M600 bookkeeping). The merged STL + schedule are kept too.
+    # height bands (base -> top), each painted with its filament. The
+    # layer_changes list bakes a tool_change at every swap height and runs the
+    # model as MultiAsSingle, so a single-nozzle printer pauses for the filament
+    # swap automatically — no manual M600 bookkeeping. (Merged STL + schedule
+    # are kept too for the manual workflow.)
+    slot_of = {h.upper(): i + 1 for i, h in enumerate(order)}
+    layer_changes = [
+        {"top_z": b["z0"], "extruder": slot_of[b["hex"].upper()], "color": b["hex"]}
+        for b in bands if b["action"] != "start"
+    ]
     bundle_name = None
     parts_3mf = [
         {"name": "%s_%s" % (stem, _filament_slug(
@@ -914,13 +949,10 @@ def generate_stack(session: Session, assignments: list[dict], order: list[str], 
     if parts_3mf:
         bundle_name = "%s_colorplate.3mf" % stem
         bundle_path = os.path.join(session.out_dir, bundle_name)
-        _write_3mf(bundle_path, parts_3mf, model_name="%s colorplate" % stem)
+        _write_3mf(bundle_path, parts_3mf, model_name="%s colorplate" % stem,
+                   layer_changes=layer_changes)
         written.append(bundle_path)
         files.insert(0, GenFile(bundle_name, None, os.path.getsize(bundle_path)))
-
-    bands = _swap_bands(order, base_mm, step_mm, layer_mm)
-    for band in bands:
-        band["name"] = name_by_hex.get(band["hex"].upper(), band["hex"])
 
     # human-readable swap schedule
     sched_name = "%s_swaps.txt" % stem
