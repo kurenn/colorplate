@@ -3,6 +3,14 @@ const { useState, useEffect, useMemo, useRef } = React;
 
 const PICKER_MODE = "popover";   // product default (Tweaks panel is dev-only)
 
+// Human-readable file size — small plates are KB, not "0.0 MB".
+function fmtSize(bytes) {
+  if (bytes == null || isNaN(bytes)) return "";
+  if (bytes < 1000) return bytes + " B";
+  if (bytes < 1e6) return (bytes / 1e3).toFixed(bytes < 1e4 ? 1 : 0) + " KB";
+  return (bytes / 1e6).toFixed(1) + " MB";
+}
+
 // ---- tiny API client -------------------------------------------------------
 async function apiErr(r) {
   try { const j = await r.json(); return new Error(j.detail || r.statusText); }
@@ -163,10 +171,10 @@ function App() {
   const [nozzle, setNozzle] = useState(0.4);
   const [printable, setPrintable] = useState(null);   // printability report
   const [showRisk, setShowRisk] = useState(true);     // 2D at-risk overlay
-  const [front, setFront] = useState(1.0);
-  const [backThick, setBackThick] = useState(2.0);
+  const [front, setFront] = useState(1.0);            // colored relief thickness
+  const [backThick, setBackThick] = useState(2.0);    // solid backing plate thickness
   const [regions, setRegions] = useState([]);
-  const [backing, setBacking] = useState(null);       // filament hex | null
+  const [backing, setBacking] = useState(null);       // backing filament hex | null
   const [result, setResult] = useState(null);
 
   // single-extruder ("filament swap") mode
@@ -578,21 +586,28 @@ function App() {
                 <div className="rhead">
                   <span className="ok"><Icons.check size={13} /></span>
                   <h4>{result.files.length} files ready</h4>
-                  <span className="mono" style={{ marginLeft: "auto", fontSize: 11, color: "var(--text-3)" }}>{result.totalMB.toFixed(1)} MB total</span>
+                  <span className="mono" style={{ marginLeft: "auto", fontSize: 11, color: "var(--text-3)" }}>{fmtSize(result.totalBytes != null ? result.totalBytes : result.totalMB * 1e6)} total</span>
                 </div>
                 <div className="hint" style={{ marginTop: 6 }}>{printer === "single"
                   ? <>One terraced STL ({result.totalHeight}mm tall) plus a swap schedule. Print as one object on a single nozzle, inserting an <code>M600</code> at each swap layer.</>
-                  : "One STL per filament color, plus the backing plate. Load them into your slicer as a single multi-color object."}</div>
+                  : result.model3mf
+                    ? <>Open the <strong>.3mf</strong> for one aligned, pre-colored object — every part lands in the right place. (The per-color STLs are included too; if you use those, load them <em>together as a single object</em>, not separately, or the parts will scatter.) Print face-down.</>
+                    : "One STL per filament color, plus the backing plate. Load them into your slicer as a single multi-color object."}</div>
               </div>
               <div className="rs-list">
-                {result.files.map((f, i) => (
-                  <div className="file-row" key={f.name} style={{ animationDelay: i * 45 + "ms" }}>
-                    <span className="fi" style={{ background: f.hex }} />
-                    <span className="fn">{f.name}</span>
-                    <span className="fsz">{f.sizeMB.toFixed(1)} MB</span>
+                {result.files.map((f, i) => {
+                  const is3mf = /\.3mf$/i.test(f.name);
+                  return (
+                  <div className={"file-row" + (is3mf ? " file-row--bundle" : "")} key={f.name} style={{ animationDelay: i * 45 + "ms" }}>
+                    {is3mf
+                      ? <span className="fi fi--bundle" title="Assembled, pre-colored bundle"><Icons.cube size={12} /></span>
+                      : <span className="fi" style={{ background: f.hex }} />}
+                    <span className="fn">{f.name}{is3mf ? <span className="badge" style={{ marginLeft: 8 }}>recommended</span> : null}</span>
+                    <span className="fsz">{fmtSize(f.sizeBytes != null ? f.sizeBytes : f.sizeMB * 1e6)}</span>
                     <a className="dl" title="Download" href={fileUrl(f.name)} download><Icons.download size={15} /></a>
                   </div>
-                ))}
+                  );
+                })}
               </div>
               <div className="rs-foot">
                 <a className="btn-primary" href={zipUrl} download><Icons.pkg size={17} /> Download all (.zip)</a>

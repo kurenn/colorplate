@@ -52,10 +52,16 @@ def test_full_flow(api, sample_svg_bytes):
     gen = rg.json()
     assert gen["zip"].endswith(".zip") and gen["files"]
 
+    # the assembled, pre-colored 3MF bundle is offered first
+    assert gen["model3mf"] and gen["files"][0]["name"].endswith(".3mf")
+
     # download an STL and the zip
-    fname = gen["files"][0]["name"]
+    fname = next(f["name"] for f in gen["files"] if f["name"].endswith(".stl"))
     rf = api.get(f"/api/file/{uid}/{fname}")
     assert rf.status_code == 200 and rf.content
+    # the 3MF is downloadable too
+    r3 = api.get(f"/api/file/{uid}/{gen['model3mf']}")
+    assert r3.status_code == 200 and r3.content
     rz = api.get(f"/api/zip/{uid}/{gen['zip']}")
     assert rz.status_code == 200 and rz.content
 

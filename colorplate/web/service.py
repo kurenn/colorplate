@@ -91,6 +91,24 @@ def nearest_preset(hex_str: str) -> dict:
     return {"name": best["name"], "hex": best["hex"]}
 
 
+# Snap a detected color onto a filament preset only when the match is genuinely
+# close (redmean distance). The palette has no green/blue/purple — and only a
+# pure White/Black at the light/dark ends — so without a tight guard, tinted
+# colors collapse onto the wrong preset (green -> Charcoal, cream #F7E4C9 ->
+# White): the chip lies even though detection was right. The cutoff sits between
+# true near-whites/blacks (≈20-40) and clearly-tinted colors (cream is ≈69);
+# beyond it we keep the detected color itself as a "Custom" filament so the
+# default assignment actually matches what was detected.
+PRESET_SNAP_DIST = 50.0
+
+
+def default_filament(hex_str: str) -> dict:
+    best = nearest_preset(hex_str)
+    if color_dist(hex_str, best["hex"]) <= PRESET_SNAP_DIST:
+        return best
+    return {"name": "Custom", "hex": hex_str.upper()}
+
+
 def slug(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")
 
@@ -246,7 +264,7 @@ def _regions_payload(session: Session) -> list[dict]:
             "id": "T" + str(i + 1),
             "detected": hexv,
             "weight": round(session.weights[i], 4),
-            "filament": nearest_preset(hexv),
+            "filament": default_filament(hexv),
         })
     return out
 
@@ -421,6 +439,10 @@ def build_mesh3d(session: Session, *, size_mm: float, front_mm: float,
     cfg = PlateConfig(size_mm=size_mm, front_mm=front_mm, back_mm=back_mm)
     builder = MeshBuilder(scale, cfg.simplify_px, cfg.min_area_mm2)
 
+    # Colored relief on the front; solid backing behind, tucked up into the
+    # colors by `overlap` (interior interface, no coincident plane) — matches the
+    # exported geometry so the preview is what you print.
+    overlap = round(min(0.6, front_mm * 0.5, back_mm * 0.5), 3)
     bbox = [float("inf")] * 3 + [float("-inf")] * 3
     regions = []
     for i in range(len(session.detected)):
@@ -429,7 +451,8 @@ def build_mesh3d(session: Session, *, size_mm: float, front_mm: float,
             if mask.any() else None
         regions.append({"index": i, "geometry": payload})
 
-    backing = _mesh_payload(builder.build(sil, back_mm, z_offset=front_mm), bbox)
+    backing = _mesh_payload(
+        builder.build(sil, back_mm + overlap, z_offset=front_mm - overlap), bbox)
 
     has_geom = any(r["geometry"] for r in regions) or backing is not None
     return {
@@ -526,7 +549,159 @@ def build_stack3d(session: Session, *, assignments: list[str], order: list[str],
 class GenFile:
     name: str
     hex: str
-    size_mb: float
+    size_bytes: int
+
+
+def _paint_color_code(slot: int) -> str:
+    """Bambu/Orca facet paint code for a uniformly-painted triangle on filament
+    ``slot`` (1-based). Slot 1 is the object's default extruder → no paint ("").
+
+    The painted facet "state" equals the filament number, and Orca's mapping
+    (confirmed against a real slice) is: filament 1 -> "4", 2 -> "8", 3 -> "0C",
+    then +0x10 per filament -> "1C", "2C", "3C", … . Filament 1 is left unpainted
+    (it falls through to the object's default extruder), so we emit codes only
+    from filament 2 up: "8", "0C", "1C", "2C", …
+    """
+    if slot <= 1:
+        return ""
+    if slot == 2:
+        return "8"
+    return "%02X" % (((slot - 3) << 4) | 0x0C)
+
+
+def _write_3mf(path: str, parts: list[dict], *, model_name: str = "ColorPlate") -> None:
+    """Write a single 3MF bundling every plate as one assembled, pre-colored
+    object.
+
+    ``parts`` is a list of ``{"name", "hex", "mesh"}`` (a trimesh) in their
+    shared, absolute coordinates. Each part becomes its own ``<object>`` — named
+    after its color and tagged with that filament's color — and all of them are
+    referenced as ``<component>``s of a single assembly object. A slicer
+    therefore opens the file as ONE object with multiple parts that keep their
+    relative positions (fixing the misalignment from importing the separate
+    per-color STLs).
+
+    Bambu/Orca ignores the core 3MF ``name`` for component parts and instead
+    reads part names + filament slots from its own ``Metadata/model_settings``
+    file, so we emit that too — giving each part its color name and its own
+    extruder in the object tree instead of a generic "Object_1".
+    """
+    import xml.sax.saxutils as su
+
+    def _norm(hexv: str) -> str:
+        h = hexv.lstrip("#").upper()
+        if len(h) == 3:
+            h = "".join(c * 2 for c in h)
+        return "#" + h
+
+    # One filament slot per *distinct* color, in first-seen order — so parts that
+    # share a color (e.g. a black accent and a black backing) share a slot and we
+    # don't emit a phantom extra filament. The slot index drives both the part's
+    # extruder and the embedded filament_colour, so the color the user sees in
+    # Orca actually matches the plate.
+    slot_of: "OrderedDict[str, int]" = OrderedDict()
+    for p in parts:
+        h = _norm(p["hex"])
+        if h not in slot_of:
+            slot_of[h] = len(slot_of) + 1
+    filament_colour = list(slot_of.keys())
+
+    MAT_ID = 1
+    mat_lines, object_lines, component_lines, part_cfg_lines = [], [], [], []
+    for idx, p in enumerate(parts):
+        hexn = _norm(p["hex"])
+        name_attr = su.quoteattr(p["name"])
+        mat_lines.append(
+            '      <base name=%s displaycolor="%sFF"/>' % (name_attr, hexn))
+
+        m = p["mesh"]
+        verts = "".join('<vertex x="%.4f" y="%.4f" z="%.4f"/>' % (v[0], v[1], v[2])
+                        for v in m.vertices)
+        # Bake Orca/Bambu color-painting onto every triangle of the part. Orca
+        # honors per-triangle `paint_color` in the slicer even when it ignores
+        # the per-part filament assignment (the bug that printed the green mouth
+        # black until it was hand-painted). Codes match Bambu's facet encoding
+        # exactly: fil2="4", fil3="8", then fil4+="0C","1C","2C",… (slot 1 is the
+        # object's default extruder, left unpainted).
+        slot = slot_of[hexn]
+        pc = _paint_color_code(slot)
+        pc = (' paint_color="%s"' % pc) if pc else ""
+        tris = "".join('<triangle v1="%d" v2="%d" v3="%d"%s/>' % (f[0], f[1], f[2], pc)
+                       for f in m.faces)
+        oid = idx + 2  # 1 is the basematerials group; assembly comes last
+        object_lines.append(
+            '    <object id="%d" name=%s type="model" pid="%d" pindex="%d"><mesh>'
+            '<vertices>%s</vertices><triangles>%s</triangles></mesh></object>'
+            % (oid, name_attr, MAT_ID, idx, verts, tris))
+        component_lines.append('      <component objectid="%d"/>' % oid)
+        # Orca/Bambu part metadata: name + its filament slot (shared by color).
+        part_cfg_lines.append(
+            '    <part id="%d" subtype="normal_part">\n'
+            '      <metadata key="name" value=%s/>\n'
+            '      <metadata key="extruder" value="%d"/>\n'
+            '    </part>'
+            % (oid, su.quoteattr(p["name"]), slot_of[hexn]))
+
+    asm_id = len(parts) + 2
+    model = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<model unit="millimeter" xml:lang="en-US" '
+        'xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02" '
+        'xmlns:m="http://schemas.microsoft.com/3dmanufacturing/material/2015/02">\n'
+        '  <metadata name="Title">%s</metadata>\n'
+        '  <resources>\n'
+        '    <basematerials id="%d">\n%s\n    </basematerials>\n'
+        '%s\n'
+        '    <object id="%d" name=%s type="model"><components>\n%s\n    </components></object>\n'
+        '  </resources>\n'
+        '  <build><item objectid="%d"/></build>\n'
+        '</model>\n'
+    ) % (su.escape(model_name), MAT_ID, "\n".join(mat_lines), "\n".join(object_lines),
+         asm_id, su.quoteattr(model_name), "\n".join(component_lines), asm_id)
+
+    # Orca/Bambu per-object + per-part settings (names, filament slots).
+    model_settings = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<config>\n'
+        '  <object id="%d">\n'
+        '    <metadata key="name" value=%s/>\n'
+        '    <metadata key="extruder" value="1"/>\n'
+        '%s\n'
+        '  </object>\n'
+        '</config>\n'
+    ) % (asm_id, su.quoteattr(model_name), "\n".join(part_cfg_lines))
+
+    # Embed the filament colors so Orca paints each slot with the plate's actual
+    # color. Without this, a part assigned to "extruder N" just inherits whatever
+    # filament the user happens to have in slot N (so a green mouth prints black).
+    # Only the color/type are set — no printer or process keys — so the user's
+    # selected machine and print settings are left untouched.
+    project_settings = json.dumps({
+        "filament_colour": filament_colour,
+        "filament_type": ["PLA"] * len(filament_colour),
+    }, indent=4)
+
+    content_types = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">\n'
+        '  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>\n'
+        '  <Default Extension="model" ContentType="application/vnd.ms-package.3dmanufacturing-3dmodel+xml"/>\n'
+        '  <Default Extension="config" ContentType="application/vnd.bambulab-package.config+xml"/>\n'
+        '</Types>\n'
+    )
+    rels = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">\n'
+        '  <Relationship Target="/3D/3dmodel.model" Id="rel0" '
+        'Type="http://schemas.microsoft.com/3dmanufacturing/2013/01/3dmodel"/>\n'
+        '</Relationships>\n'
+    )
+    with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("[Content_Types].xml", content_types)
+        z.writestr("_rels/.rels", rels)
+        z.writestr("3D/3dmodel.model", model)
+        z.writestr("Metadata/model_settings.config", model_settings)
+        z.writestr("Metadata/project_settings.config", project_settings)
 
 
 def generate(session: Session, assignments: list[dict], *, size_mm: float,
@@ -571,9 +746,18 @@ def generate(session: Session, assignments: list[dict], *, size_mm: float,
             groups[key] = g
         g["mask"] |= mask
 
+    # Colored relief on the front (z 0..front), solid single-color backing plate
+    # behind it. The backing TUCKS UP into the colors by `overlap` so the shared
+    # interface is interior volume rather than a coincident plane — that coincident
+    # plane is what let Orca collapse a small color region (the green mouth) into
+    # the backing and slice it as 0mm. Mirrors the single-extruder terrace, which
+    # overlaps its slabs for the same reason.
+    overlap = round(min(0.6, cfg.front_mm * 0.5, cfg.back_mm * 0.5), 3)
+
     files: list[GenFile] = []
     written: list[str] = []
     manifest_colors = []
+    parts_3mf: list[dict] = []          # meshes for the assembled, aligned bundle
     for g in groups.values():
         mesh = builder.build(g["mask"], cfg.front_mm, z_offset=0.0)
         if mesh is None:
@@ -582,7 +766,11 @@ def generate(session: Session, assignments: list[dict], *, size_mm: float,
         path = os.path.join(out_dir, fname)
         mesh.export(path)
         written.append(path)
-        files.append(GenFile(fname, g["fil"]["hex"], os.path.getsize(path) / 1e6))
+        files.append(GenFile(fname, g["fil"]["hex"], os.path.getsize(path)))
+        # name the 3MF part after its STL (e.g. "logo_white") so the slicer's
+        # object tree reads by color instead of "Object_1", "Object_1_2", …
+        parts_3mf.append({"name": os.path.splitext(fname)[0],
+                          "hex": g["fil"]["hex"], "mesh": mesh})
         manifest_colors.append({
             "name": g["fil"]["name"], "hex": g["fil"]["hex"],
             "rgb": list(hex_to_rgb(g["fil"]["hex"])), "stl": fname,
@@ -590,13 +778,27 @@ def generate(session: Session, assignments: list[dict], *, size_mm: float,
 
     backing_name = None
     if backing_hex:
-        backing = builder.build(sil, cfg.back_mm, z_offset=cfg.front_mm)
+        backing = builder.build(sil, cfg.back_mm + overlap, z_offset=cfg.front_mm - overlap)
         if backing is not None:
             backing_name = "%s_backing.stl" % stem
             path = os.path.join(out_dir, backing_name)
             backing.export(path)
             written.append(path)
-            files.append(GenFile(backing_name, backing_hex, os.path.getsize(path) / 1e6))
+            files.append(GenFile(backing_name, backing_hex, os.path.getsize(path)))
+            parts_3mf.append({"name": os.path.splitext(backing_name)[0],
+                              "hex": backing_hex, "mesh": backing})
+
+    # Assembled, pre-colored bundle — open THIS one file in your slicer to get
+    # every part aligned (the separate STLs scatter, since the slicer re-centers
+    # each on its own bounding box). STLs are kept for slicers/workflows that
+    # prefer them.
+    bundle_name = None
+    if parts_3mf:
+        bundle_name = "%s_colorplate.3mf" % stem
+        bundle_path = os.path.join(out_dir, bundle_name)
+        _write_3mf(bundle_path, parts_3mf, model_name="%s colorplate" % stem)
+        written.append(bundle_path)
+        files.insert(0, GenFile(bundle_name, None, os.path.getsize(bundle_path)))
 
     # recolored preview PNG (show face) at detection res
     prev_name = "%s_preview.png" % stem
@@ -611,8 +813,12 @@ def generate(session: Session, assignments: list[dict], *, size_mm: float,
         json.dump({
             "front_mm": cfg.front_mm, "back_mm": cfg.back_mm, "size_mm": cfg.size_mm,
             "backing_color": backing_hex, "colors": manifest_colors,
-            "backing": backing_name,
-            "note": "Load all STLs together; they share an origin. Print face-down.",
+            "backing": backing_name, "bundle": bundle_name,
+            "note": ("Open the .3mf for one aligned, pre-colored multi-part object. "
+                     "Or load all STLs together as a single object (they share an "
+                     "origin) — importing them separately misaligns the parts. "
+                     "Print face-down: the colored relief is on the front, on a "
+                     "solid backing plate."),
         }, fh, indent=2)
     written.append(man_path)
 
@@ -628,11 +834,13 @@ def generate(session: Session, assignments: list[dict], *, size_mm: float,
         covered |= g["mask"]
     gap = int((sil & ~covered).sum())
 
-    total = sum(f.size_mb for f in files)
+    total_bytes = sum(f.size_bytes for f in files)
     return {
-        "files": [{"name": f.name, "hex": f.hex, "sizeMB": round(f.size_mb, 1)} for f in files],
-        "totalMB": round(total, 1),
+        "files": [{"name": f.name, "hex": f.hex, "sizeBytes": f.size_bytes} for f in files],
+        "totalBytes": total_bytes,
+        "totalMB": round(total_bytes / 1e6, 1),
         "zip": zip_name,
+        "model3mf": bundle_name,
         "coverageGap": gap,
     }
 
@@ -689,7 +897,7 @@ def generate_stack(session: Session, assignments: list[dict], order: list[str], 
     stl_path = os.path.join(session.out_dir, stl_name)
     solid.export(stl_path)
     written.append(stl_path)
-    files.append(GenFile(stl_name, order[0], os.path.getsize(stl_path) / 1e6))
+    files.append(GenFile(stl_name, order[0], os.path.getsize(stl_path)))
 
     bands = _swap_bands(order, base_mm, step_mm, layer_mm)
     for band in bands:
@@ -714,7 +922,7 @@ def generate_stack(session: Session, assignments: list[dict], order: list[str], 
     with open(sched_path, "w") as fh:
         fh.write("\n".join(lines) + "\n")
     written.append(sched_path)
-    files.append(GenFile(sched_name, "#9A9AA1", os.path.getsize(sched_path) / 1e6))
+    files.append(GenFile(sched_name, "#9A9AA1", os.path.getsize(sched_path)))
 
     # manifest
     man_name = "%s_manifest.json" % stem
@@ -731,14 +939,14 @@ def generate_stack(session: Session, assignments: list[dict], order: list[str], 
             "note": "Single extruder: print the STL and insert an M600 at each swap layer.",
         }, fh, indent=2)
     written.append(man_path)
-    files.append(GenFile(man_name, "#9A9AA1", os.path.getsize(man_path) / 1e6))
+    files.append(GenFile(man_name, "#9A9AA1", os.path.getsize(man_path)))
 
     # show-face preview (top view)
     prev_name = "%s_preview.png" % stem
     prev_path = os.path.join(session.out_dir, prev_name)
     _write_show_preview(session, assign_hex, prev_path)
     written.append(prev_path)
-    files.append(GenFile(prev_name, "#9A9AA1", os.path.getsize(prev_path) / 1e6))
+    files.append(GenFile(prev_name, "#9A9AA1", os.path.getsize(prev_path)))
 
     # zip everything
     zip_name = "%s_single_extruder.zip" % stem
@@ -747,9 +955,11 @@ def generate_stack(session: Session, assignments: list[dict], order: list[str], 
         for p in written:
             zf.write(p, os.path.basename(p))
 
+    total_bytes = sum(f.size_bytes for f in files)
     return {
-        "files": [{"name": f.name, "hex": f.hex, "sizeMB": round(f.size_mb, 1)} for f in files],
-        "totalMB": round(sum(f.size_mb for f in files), 1),
+        "files": [{"name": f.name, "hex": f.hex, "sizeBytes": f.size_bytes} for f in files],
+        "totalBytes": total_bytes,
+        "totalMB": round(total_bytes / 1e6, 1),
         "zip": zip_name,
         "coverageGap": 0,
         "totalHeight": round(total, 2),
