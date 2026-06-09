@@ -988,9 +988,11 @@ def generate_stack(session: Session, assignments: list[dict], order: list[str], 
                 "name": b["name"], "hex": b["hex"], "rgb": list(hex_to_rgb(b["hex"])),
                 "action": b["action"], "z_mm": b["z0"], "layer": b["layer"],
             } for b in bands],
-            "note": ("Open the .3mf for a pre-colored object (a single-extruder "
-                     "printer schedules the filament changes for you). Or print "
-                     "the STL and insert an M600 at each swap layer."),
+            "note": ("Open the .3mf for a pre-colored object. The colors are baked "
+                     "in, but the filament changes are inserted by your slicer at "
+                     "slice time based on the printer profile (single-nozzle: a "
+                     "pause per swap; AMS: automatic). Use this swap schedule to add "
+                     "pauses (M600) by hand if your setup needs them."),
         }, fh, indent=2)
     written.append(man_path)
     files.append(GenFile(man_name, "#9A9AA1", os.path.getsize(man_path)))

@@ -589,11 +589,26 @@ function App() {
                   <span className="mono" style={{ marginLeft: "auto", fontSize: 11, color: "var(--text-3)" }}>{fmtSize(result.totalBytes != null ? result.totalBytes : result.totalMB * 1e6)} total</span>
                 </div>
                 <div className="hint" style={{ marginTop: 6 }}>{printer === "single"
-                  ? <>Open the <strong>.3mf</strong> for a pre-colored object ({result.totalHeight}mm tall) — a single-extruder printer schedules the filament changes for you. Or print the terraced STL and insert an <code>M600</code> at each swap layer.</>
+                  ? <>Open the <strong>.3mf</strong> for a pre-colored object ({result.totalHeight}mm tall) ({Math.max(0, (result.swaps != null ? result.swaps : 0))} filament change{result.swaps === 1 ? "" : "s"}). Or print the terraced STL.</>
                   : result.model3mf
                     ? <>Open the <strong>.3mf</strong> for one aligned, pre-colored object — every part lands in the right place. (The per-color STLs are included too; if you use those, load them <em>together as a single object</em>, not separately, or the parts will scatter.) Print face-down.</>
                     : "One STL per filament color, plus the backing plate. Load them into your slicer as a single multi-color object."}</div>
               </div>
+              {printer === "single" && (
+                <div className="fill-nudge" style={{ margin: "2px 0 12px" }}>
+                  <Icons.warn size={15} />
+                  <div>
+                    <strong>How the swaps happen:</strong> the colors are baked in, but the actual filament
+                    changes are inserted by your slicer at slice time, based on your printer profile —
+                    they aren't stored in the file.
+                    <ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>
+                      <li>On a <strong>single-nozzle (no-AMS)</strong> printer, set the printer to single-extruder so the slicer pauses for each manual swap.</li>
+                      <li>On an <strong>AMS / multi-material</strong> printer, the colors swap automatically (no pause).</li>
+                      <li>Either way, the included <code>swaps.txt</code> lists the exact layer for each change, so you can add a pause (<code>M600</code>) by hand if needed.</li>
+                    </ul>
+                  </div>
+                </div>
+              )}
               <div className="rs-list">
                 {result.files.map((f, i) => {
                   const is3mf = /\.3mf$/i.test(f.name);
