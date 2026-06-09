@@ -148,8 +148,8 @@ const ThreePreview = (function () {
         const dx = p.x - prev.x, dy = p.y - prev.y;
         state.rotY += dx * 0.01;
         state.rotX += dy * 0.01;
-        const lim = Math.PI / 2 - 0.05;
-        state.rotX = Math.max(-lim, Math.min(lim, state.rotX));
+        // Free tumble on X — no clamp, so you can flip the plate right over and
+        // inspect the back. (Kept unbounded; Euler wrap is harmless here.)
         state.velY = dx * 0.01;
       };
       const onUp = (e) => {
@@ -316,7 +316,13 @@ const ThreePreview = (function () {
     state.regionMeshes = data.regions.map((r) => {
       if (!r.geometry) return null;
       const geo = makeGeometry(r.geometry, center);
-      const mat = new THREE.MeshStandardMaterial({ color: 0xcccccc, roughness: 0.62, metalness: 0.0 });
+      // polygonOffset nudges the filled faces a hair back in depth so the edge
+      // outlines laid on the same surface render cleanly on top instead of
+      // z-fighting them into the hatched shimmer.
+      const mat = new THREE.MeshStandardMaterial({
+        color: 0xcccccc, roughness: 0.62, metalness: 0.0,
+        polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1,
+      });
       const mesh = new THREE.Mesh(geo, mat);
       mesh.userData.color = r.color || null;     // band color (stack mode) if baked
       state.model.add(mesh);
@@ -345,6 +351,14 @@ const ThreePreview = (function () {
     const fov = (state.camera.fov * Math.PI) / 180;
     state.dist = (radius / Math.sin(fov / 2)) * 1.18;
     state.fitDist = state.dist;
+    // Clamp the depth range tightly around the model. A fixed near=0.1/far=5000
+    // gives the z-buffer almost no precision once the plate is large, so the
+    // thin coplanar layers strobe (the "flicker after Bump size"). Anchoring
+    // near/far to the model radius keeps the near:far ratio constant — and so
+    // the precision constant — across the whole zoom range and every plate size.
+    state.camera.near = Math.max(0.05, radius * 0.1);
+    state.camera.far = radius * 12;
+    state.camera.updateProjectionMatrix();
   }
 
   function resetView(state) {
