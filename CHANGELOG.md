@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-06-09
+
+### Added
+- **Pre-colored `.3mf` bundle** for the web GUI export (both Multi-material and
+  Single-extruder). Alongside the per-color STLs, ColorPlate now writes a single
+  assembled `.3mf` that opens as one aligned, multi-part object with each part
+  **named by its color** and the filament colors **baked in** — using Bambu/Orca
+  facet painting (`paint_color`) plus an embedded `filament_colour` palette — so
+  it slices to the right colors with no manual painting. The separate STLs each
+  center on their own bounding box, so loading them individually scatters the
+  parts; the `.3mf` keeps everything in place and is offered as the recommended
+  download.
+- Single-extruder `.3mf` carries per-band filament-change metadata and the GUI
+  shows a clear note on how/where swaps are inserted at slice time (single-nozzle
+  pauses vs. AMS auto-swap), alongside the existing terraced STL + swap schedule.
+
+### Changed
+- Detected colors with no close filament-preset match (greens, blues, purples,
+  light tints like cream `#F7E4C9`) now keep their **exact detected value as a
+  "Custom" filament** instead of snapping to a wrong near-black/white preset.
+- The Multi-material backing plate now **interlocks** with the colored relief (an
+  interior overlap rather than a coincident face), so a slicer can't collapse a
+  thin color region into the backing and print it in the wrong color.
+- The results list shows **real per-file sizes** (B / KB / MB) instead of
+  rounding small files to `0.0 MB`.
+
+### Fixed
+- 3D preview no longer **flickers (z-fighting)** at larger plate sizes: the camera
+  depth range is anchored to the model so depth precision stays constant across
+  sizes and zoom, and the region edge outlines use polygon offset.
+- 3D preview **X rotation is no longer clamped** to ~±90° — the plate tumbles
+  freely so you can inspect its back.
+
 ## [0.5.1] - 2026-06-05
 
 ### Added
@@ -109,7 +142,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Graphical README with brand assets (hero banner, logo, pipeline graphic,
   GUI screenshots) and an MIT license.
 
-[Unreleased]: https://github.com/kurenn/colorplate/compare/v0.5.1...HEAD
+[Unreleased]: https://github.com/kurenn/colorplate/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/kurenn/colorplate/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/kurenn/colorplate/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/kurenn/colorplate/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/kurenn/colorplate/compare/v0.3.1...v0.4.0
