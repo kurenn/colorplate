@@ -23,6 +23,9 @@ def test_generate_produces_stls_and_zip(sample_session):
     names = [f["name"] for f in res["files"]]
     assert any(n.endswith("_backing.stl") for n in names)
     assert any(n.endswith(".stl") and not n.endswith("_backing.stl") for n in names)
+    # the assembled, pre-colored bundle that opens as one aligned object
+    assert res["model3mf"] and res["model3mf"].endswith(".3mf")
+    assert res["model3mf"] in names
 
     zpath = os.path.join(session.out_dir, res["zip"])
     assert os.path.exists(zpath)
@@ -31,6 +34,7 @@ def test_generate_produces_stls_and_zip(sample_session):
     assert any(m.endswith("_manifest.json") for m in members)
     assert any(m.endswith("_preview.png") for m in members)
     assert any(m.endswith(".stl") for m in members)
+    assert any(m.endswith(".3mf") for m in members)
 
 
 def test_generate_merges_regions_sharing_a_filament(sample_session):
@@ -44,5 +48,6 @@ def test_generate_merges_regions_sharing_a_filament(sample_session):
         session, assignments,
         size_mm=100, front_mm=1.0, back_mm=2.0, backing_hex=None,
     )
-    color_stls = [f for f in res["files"] if not f["name"].endswith("_backing.stl")]
+    color_stls = [f for f in res["files"]
+                  if f["name"].endswith(".stl") and not f["name"].endswith("_backing.stl")]
     assert len(color_stls) == 1            # all regions share one filament -> one file
