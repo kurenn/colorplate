@@ -589,7 +589,7 @@ function App() {
                   <span className="mono" style={{ marginLeft: "auto", fontSize: 11, color: "var(--text-3)" }}>{fmtSize(result.totalBytes != null ? result.totalBytes : result.totalMB * 1e6)} total</span>
                 </div>
                 <div className="hint" style={{ marginTop: 6 }}>{printer === "single"
-                  ? <>One terraced STL ({result.totalHeight}mm tall) plus a swap schedule. Print as one object on a single nozzle, inserting an <code>M600</code> at each swap layer.</>
+                  ? <>Open the <strong>.3mf</strong> for a pre-colored object ({result.totalHeight}mm tall) — a single-extruder printer schedules the filament changes for you. Or print the terraced STL and insert an <code>M600</code> at each swap layer.</>
                   : result.model3mf
                     ? <>Open the <strong>.3mf</strong> for one aligned, pre-colored object — every part lands in the right place. (The per-color STLs are included too; if you use those, load them <em>together as a single object</em>, not separately, or the parts will scatter.) Print face-down.</>
                     : "One STL per filament color, plus the backing plate. Load them into your slicer as a single multi-color object."}</div>

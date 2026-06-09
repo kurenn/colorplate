@@ -899,6 +899,25 @@ def generate_stack(session: Session, assignments: list[dict], order: list[str], 
     written.append(stl_path)
     files.append(GenFile(stl_name, order[0], os.path.getsize(stl_path)))
 
+    # Assembled, pre-colored .3mf — same bundle as MMU, but the parts are the
+    # height bands (base -> top). Each band's triangles are painted with its
+    # filament, so opening the file shows the colors and a single-extruder
+    # printer inserts the filament changes at the band boundaries automatically
+    # (no manual M600 bookkeeping). The merged STL + schedule are kept too.
+    bundle_name = None
+    parts_3mf = [
+        {"name": "%s_%s" % (stem, _filament_slug(
+            {"name": name_by_hex.get(s["color"].upper(), s["color"]), "hex": s["color"]})),
+         "hex": s["color"], "mesh": s["mesh"]}
+        for s in slabs if s["mesh"] is not None
+    ]
+    if parts_3mf:
+        bundle_name = "%s_colorplate.3mf" % stem
+        bundle_path = os.path.join(session.out_dir, bundle_name)
+        _write_3mf(bundle_path, parts_3mf, model_name="%s colorplate" % stem)
+        written.append(bundle_path)
+        files.insert(0, GenFile(bundle_name, None, os.path.getsize(bundle_path)))
+
     bands = _swap_bands(order, base_mm, step_mm, layer_mm)
     for band in bands:
         band["name"] = name_by_hex.get(band["hex"].upper(), band["hex"])
@@ -932,11 +951,14 @@ def generate_stack(session: Session, assignments: list[dict], order: list[str], 
             "mode": "single-extruder",
             "size_mm": size_mm, "base_mm": base_mm, "step_mm": step_mm,
             "layer_mm": layer_mm, "total_mm": round(total, 2), "stl": stl_name,
+            "bundle": bundle_name,
             "bands": [{
                 "name": b["name"], "hex": b["hex"], "rgb": list(hex_to_rgb(b["hex"])),
                 "action": b["action"], "z_mm": b["z0"], "layer": b["layer"],
             } for b in bands],
-            "note": "Single extruder: print the STL and insert an M600 at each swap layer.",
+            "note": ("Open the .3mf for a pre-colored object (a single-extruder "
+                     "printer schedules the filament changes for you). Or print "
+                     "the STL and insert an M600 at each swap layer."),
         }, fh, indent=2)
     written.append(man_path)
     files.append(GenFile(man_name, "#9A9AA1", os.path.getsize(man_path)))
@@ -961,6 +983,7 @@ def generate_stack(session: Session, assignments: list[dict], order: list[str], 
         "totalBytes": total_bytes,
         "totalMB": round(total_bytes / 1e6, 1),
         "zip": zip_name,
+        "model3mf": bundle_name,
         "coverageGap": 0,
         "totalHeight": round(total, 2),
         "swaps": max(0, len(order) - 1),
